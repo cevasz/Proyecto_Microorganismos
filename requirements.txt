@@ -1,0 +1,13 @@
+torch
+torchdiffeq
+stable-baselines3[extra]
+gymnasium>=0.26
+numpy
+scipy
+matplotlib
+pygame
+pyyaml
+wandb
+pytest
+black
+isort

@@ -1,0 +1,37 @@
+environment:
+  grid_size: [200, 200]        # μm × μm
+  dx: 1.0                      # μm por celda
+  dt: 0.01                     # s por paso
+  D_glucose: 600               # μm²/s
+  D_oxygen: 2000               # μm²/s
+
+bacterium:
+  run_speed: 25.0              # μm/s (promedio 20–30)
+  tumble_duration: 0.1         # s
+  run_duration_min: 0.1        # s
+  run_duration_max: 3.0        # s
+  division_length: 4.0         # μm (umbral de fisión)
+  division_time_mean: 1200     # s (~20 min a 37°C)
+
+rl:
+  algorithm: PPO
+  policy: MlpPolicy
+  total_timesteps: 2_000_000
+  learning_rate: 3.0e-4
+  gamma: 0.99
+  reward_alpha: 1.0            # peso nutrientes
+  reward_gamma: 0.1            # peso costo energético
+
+neural_ode:
+  hidden_dim: 64
+  state_dim: 4                 # [CheY-P, ppGpp, metilación, energía]
+  solver: dopri5               # Dormand-Prince RK45
+  rtol: 1.0e-3
+  atol: 1.0e-4
+
+lstm:
+  input_dim: 3                 # [longitud, energía, tasa replicación ADN]
+  hidden_dim: 128
+  num_layers: 2
+  sequence_length: 60          # pasos temporales de historia
+  division_horizon: 30         # pasos para predecir división
