@@ -1,6 +1,6 @@
 <div align="center">
   
-# 🦠 NeuroColony-EC
+#  NeuroColony-EC
   
 **Simulación Multiagente de Colonias de *Escherichia coli***<br>
 *Combinando Aprendizaje por Refuerzo, Neural ODEs y LSTM*
@@ -14,7 +14,7 @@
 
 ---
 
-## 📖 Descripción del Proyecto
+##  Descripción del Proyecto
 
 **NeuroColony-EC** es un simulador multiagente avanzado diseñado para estudiar el comportamiento de quimiotaxis y crecimiento poblacional de la bacteria *Escherichia coli*. 
 
@@ -26,27 +26,27 @@ A diferencia de los simuladores tradicionales basados puramente en reglas biofí
 
 ---
 
-## 🧠 Arquitectura Modular
+##  Arquitectura Modular
 
 El proyecto está dividido en tres módulos principales de Machine Learning, gobernados por un entorno de simulación espacial 2D:
 
-### 🎮 Módulo 1: Quimiotaxis RL (`modules/rl_agent`)
+###  Módulo 1: Quimiotaxis RL (`modules/rl_agent`)
 - El agente aprende a navegar gradientes de nutrientes (glucosa) evadiendo zonas de bajo oxígeno.
 - Entrenado utilizando **PPO** (Proximal Policy Optimization).
 - El espacio de acción define la duración del *run* y la probabilidad de *tumble*.
 
-### 🔬 Módulo 2: Señalización Interna (`modules/neural_ode`)
+###  Módulo 2: Señalización Interna (`modules/neural_ode`)
 - Simula la red de fosforilación de CheY utilizando ecuaciones diferenciales ordinarias neuronales (**Neural ODEs**).
 - Implementa una arquitectura *Physics-Informed* (PI-NODE) para respetar la conservación de masa.
 - Calibrado con datos de expresión génica reales (NCBI GEO GSE4513).
 
-### 🧬 Módulo 3: División Celular (`modules/lstm_division`)
+###  Módulo 3: División Celular (`modules/lstm_division`)
 - Un modelo de series temporales **LSTM** predice el momento exacto de la bipartición basándose en la historia metabólica y el tamaño celular.
 - Valida la hipótesis del *Adder Model* (Taheri-Araghi et al., 2015).
 
 ---
 
-## 📂 Estructura del Repositorio
+##  Estructura del Repositorio
 
 ```text
 neurocolony-ec/
@@ -65,7 +65,7 @@ neurocolony-ec/
 
 ---
 
-## ⚙️ Instalación y Configuración
+##  Instalación y Configuración
 
 Se recomienda el uso de `conda` o un entorno virtual (`venv`/`uv`) para manejar las dependencias.
 
@@ -84,12 +84,12 @@ Se recomienda el uso de `conda` o un entorno virtual (`venv`/`uv`) para manejar 
 
 3. **Verificar instalación:**
    ```bash
-   python -c "import torch, torchdiffeq, stable_baselines3; print('✅ Entorno configurado correctamente')"
+   python -c "import torch, torchdiffeq, stable_baselines3; print(' Entorno configurado correctamente')"
    ```
 
 ---
 
-## 🚀 Uso Rápido (En desarrollo)
+##  Uso Rápido (En desarrollo)
 
 Todos los parámetros físicos y biológicos están centralizados. Puedes modificarlos en `configs/default.yaml`.
 
@@ -100,7 +100,7 @@ python -m simulation.runner --agents 50 --steps 100000 --render True
 
 ---
 
-## 📄 Licencia
+##  Licencia
 
 Este proyecto se distribuye bajo la licencia **MIT**. Siéntete libre de usarlo, modificarlo y distribuirlo.
 
