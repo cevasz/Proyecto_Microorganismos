@@ -62,33 +62,63 @@ def train_lstm_adder():
                 print(f"[Early Stopping] Detenido en epoch {epoch+1}")
                 break
                 
-    # VALIDACIÓN FINAL FASE 2: Distribución Adder Model (Taheri-Araghi 2015)
+    # VALIDACIÓN FINAL EN TEST SET: Métricas reales e inferencia
     print("\n--- VALIDACIÓN FINAL EN TEST SET ---")
     model.load_state_dict(torch.load(best_model_path))
     model.eval()
     
-    print("Ejecutando Test Chi-Cuadrado de distribución inter-divisiones...")
+    test_loss = 0.0
+    all_preds = []
+    all_targets = []
     
-    # Simulamos el histograma de tiempos generados por las predicciones vs Ground Truth
-    # (Para una validación integral, el motor inferirá N simulaciones continuas)
-    np.random.seed(42)
-    tiempos_predichos = np.random.normal(1205, 148, 500) # Proxy estadístico de inferencia robusta LSTM
-    tiempos_biologicos = np.random.normal(1200, 150, 500)
+    with torch.no_grad():
+        for x, y in test_loader:
+            x, y = x.to(device), y.to(device)
+            p_div = model(x)
+            test_loss += criterion(p_div, y).item()
+            
+            all_preds.extend(p_div.cpu().numpy().flatten())
+            all_targets.extend(y.cpu().numpy().flatten())
+            
+    test_loss /= len(test_loader)
+    all_preds = np.array(all_preds)
+    all_targets = np.array(all_targets)
     
-    obs_freq, bins = np.histogram(tiempos_predichos, bins=15)
-    exp_freq, _ = np.histogram(tiempos_biologicos, bins=bins)
+    # Evaluar métricas de clasificación reales (umbral estándar > 0.85)
+    preds_binary = (all_preds > 0.85).astype(np.float32)
+    accuracy = np.mean(preds_binary == all_targets)
     
-    # Evitar divisiones por 0 y homogeneizar suma para chi2
-    obs_freq = obs_freq + 1
-    exp_freq = exp_freq + 1
-    exp_freq = exp_freq * (obs_freq.sum() / exp_freq.sum())
+    tp = np.sum((preds_binary == 1) & (all_targets == 1))
+    fp = np.sum((preds_binary == 1) & (all_targets == 0))
+    fn = np.sum((preds_binary == 0) & (all_targets == 1))
     
-    chi2, p_val = chisquare(f_obs=obs_freq, f_exp=exp_freq)
-    print(f"Resultado Chi2 -> p-value: {p_val:.4f}")
+    precision = tp / (tp + fp + 1e-8)
+    recall = tp / (tp + fn + 1e-8)
+    f1 = 2 * (precision * recall) / (precision + recall + 1e-8)
+    
+    print(f"Test Loss: {test_loss:.4f}")
+    print(f"Test Accuracy (umbral > 0.85): {accuracy:.2%}")
+    print(f"Precision: {precision:.4f} | Recall: {recall:.4f} | F1-Score: {f1:.4f}")
+    
+    # Test Chi-cuadrado real sobre frecuencias de eventos de división
+    # Compara la proporción de divisiones predichas vs ground truth en el test set
+    obs_div = int(np.sum(preds_binary))
+    exp_div = int(np.sum(all_targets))
+    
+    f_obs = np.array([obs_div, len(preds_binary) - obs_div])
+    f_exp = np.array([exp_div, len(all_targets) - exp_div])
+    
+    # Suavizado Laplace para evitar ceros
+    f_obs = f_obs + 1
+    f_exp = f_exp + 1
+    f_exp = f_exp * (f_obs.sum() / f_exp.sum())
+    
+    chi2, p_val = chisquare(f_obs=f_obs, f_exp=f_exp)
+    print(f"Resultado Chi2 (Distribución de eventos de división) -> p-value: {p_val:.4f}")
     if p_val > 0.05:
-        print("[EXITO] Las divisiones predichas por el LSTM se ajustan estadisticamente al Adder Model (p > 0.05)")
+        print("[EXITO] La tasa de eventos de división predicha no difiere significativamente del test set (p > 0.05)")
     else:
-        print("[AVISO] Divergencia en la distribucion de division. Revisar calibracion de umbrales LSTM.")
+        print("[AVISO] Divergencia en la distribución de división. Revisar calibración de umbrales LSTM.")
 
 if __name__ == "__main__":
     train_lstm_adder()

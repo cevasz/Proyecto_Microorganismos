@@ -97,7 +97,7 @@ class Colony:
         # 4. DIVISION CELULAR (LSTM) en bloque para agentes elegibles
         eligible_agents = [agent for agent in self.agents if not agent.is_dead and len(agent.history) == 60]
         if len(eligible_agents) > 0:
-            x_seq = torch.tensor([agent.history for agent in eligible_agents], dtype=torch.float32)
+            x_seq = torch.tensor([list(agent.history) for agent in eligible_agents], dtype=torch.float32)
             with torch.no_grad():
                 p_div_batch = self.division_model(x_seq)  # [M, 1]
                 
@@ -105,23 +105,15 @@ class Colony:
                 if p_div_batch[idx].item() > 0.85:
                     agent.is_divided = True
                     
-        # 5. GESTIÓN DEL CICLO DE VIDA (Nacimientos y Muertes)
+        # 5. GESTIÓN DEL CICLO DE VIDA (Nacimientos y Muertes) - Optimizado O(N)
         new_agents = []
-        dead_agents = []
-        
         for agent in self.agents:
-            if agent.is_dead:
-                dead_agents.append(agent)
-            elif agent.is_divided:
+            if not agent.is_dead and agent.is_divided:
                 hijos = agent.divide()
                 new_agents.extend(hijos)
-                dead_agents.append(agent)
                 
-        # Remoción y adición segura
-        for da in dead_agents:
-            if da in self.agents:
-                self.agents.remove(da)
-                
+        # Filtrado lineal eficiente en una sola pasada para evitar self.agents.remove O(N^2)
+        self.agents = [agent for agent in self.agents if not agent.is_dead and not agent.is_divided]
         self.agents.extend(new_agents)
         
     def get_population_stats(self):

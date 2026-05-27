@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from collections import deque
 
 class Bacterium:
     """
@@ -23,7 +24,7 @@ class Bacterium:
         # Flags de ciclo de vida
         self.is_divided = False
         self.is_dead = False
-        self.history = []  # Buffer para entrada de LSTM (máx 60 muestras)
+        self.history = deque(maxlen=60)  # Buffer eficiente O(1) para entrada de LSTM (máx 60 muestras)
         
         # Constantes de movimiento biológico
         self.run_speed = 25.0  # μm/s
@@ -60,11 +61,9 @@ class Bacterium:
         self.length += (0.01 * dt)
             
         # Registrar en el buffer de historial para LSTM
+        # Al usar collections.deque(maxlen=60), descarta los elementos viejos en O(1) de manera automática
         dna_rate = min(self.age / 1200000.0, 1.0)
         self.history.append([self.length, self.energy, dna_rate])
-        
-        if len(self.history) > 60:
-            self.history.pop(0)
 
     def divide(self):
         """

@@ -16,26 +16,33 @@ class MockEnvFields:
     """
     Mock temporal del módulo ambiental (Dev A) para garantizar ejecución íntegra.
     Establece un gradiente estático de glucosa radial concentrado en el centro (50, 50).
+    Soporta reserva de nutrientes finita para simular colapso ecológico real.
     """
-    def __init__(self):
+    def __init__(self, initial_nutrients=5000.0):
         self.center = np.array([50.0, 50.0])
+        self.nutrients = initial_nutrients  # Reserva limitada de glucosa
         
     def get_observation(self, x, y):
-        # Retorna el vector observacional: [glucosa, gradiente_g, oxigeno, gradiente_o]
+        # Si no hay nutrientes, el gradiente decae por completo
+        if self.nutrients <= 0.0:
+            return [0.0, 0.0, 1.0, 0.0]
+            
         dist = np.linalg.norm(np.array([x, y]) - self.center)
-        glucose = max(0.0, 1.0 - (dist / 100.0))  # Decae al alejarse
-        
-        # En una RL omnisciente usaríamos el vector gradiente.
-        # Aquí usamos un proxy sintético
-        grad_g = 0.5 if dist > 0 else 0.0
+        # Factor de atenuación según nutrientes restantes
+        nut_factor = min(1.0, self.nutrients / 1000.0)
+        glucose = max(0.0, 1.0 - (dist / 100.0)) * nut_factor
+        grad_g = 0.5 * nut_factor if dist > 0 else 0.0
         
         return [glucose, grad_g, 1.0, 0.0]
         
     def consume(self, x, y, amount):
-        # Lógica de consumo simplificada: si están en zona rica, pueden consumir
+        if self.nutrients <= 0.0:
+            return 0.0
         dist = np.linalg.norm(np.array([x, y]) - self.center)
         if dist < 60.0:  # Radio de nutrientes
-            return amount
+            consumed = min(self.nutrients, amount)
+            self.nutrients -= consumed
+            return consumed
         return 0.0
 
 def generate_report(runs_dir):
@@ -98,9 +105,14 @@ def main():
                 stats = colony.get_population_stats()
                 N = stats["N"]
                 
-                # Métricas ambientales requeridas
-                glucosa_media = 0.65  # Proxy
-                recompensa_media = 0.05  # Proxy
+                # Métricas reales de glucosa y recompensas calculadas desde el estado dinámico del enjambre
+                if N > 0:
+                    glucosa_media = float(np.mean([env_fields.get_observation(a.position[0], a.position[1])[0] for a in colony.agents]))
+                    # Recompensa biológica basada en cercanía al centro de glucosa (50, 50) con penalidad de -0.01 por µm
+                    recompensa_media = float(np.mean([-np.linalg.norm(np.array(a.position) - env_fields.center) * 0.01 for a in colony.agents]))
+                else:
+                    glucosa_media = 0.0
+                    recompensa_media = 0.0
                 n_divisiones = sum([1 for a in colony.agents if a.age < (dt * 105)]) 
                 
                 log_data = {
@@ -114,7 +126,7 @@ def main():
                 
                 # Update en consola (cada 1000 pasos)
                 if step % 1000 == 0:
-                    print(f"Step {step:05d}/{args.steps} | Agentes: {N:04d} | Divs: {n_divisiones}")
+                    print(f"Step {step:05d}/{args.steps} | Agentes: {N:04d} | Divs: {n_divisiones} | Nutrientes Restantes: {env_fields.nutrients:.2f}")
                     
             # Condición de extinción
             if colony.get_population_stats()["N"] == 0:
