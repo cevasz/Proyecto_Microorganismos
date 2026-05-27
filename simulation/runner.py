@@ -53,6 +53,7 @@ def main():
     parser.add_argument("--config", type=str, default="configs/default.yaml", help="Ruta de hiperparámetros")
     parser.add_argument("--render", type=bool, default=False, help="Habilitar visualización Pygame")
     parser.add_argument("--save-video", type=bool, default=False, help="Flag para guardar simulación a MP4")
+    parser.add_argument("--model", type=str, default=None, help="Ruta del modelo PPO preentrenado (.zip)")
     args = parser.parse_args()
     
     # 1. Configuración de Logging
@@ -65,7 +66,14 @@ def main():
     
     # 2. Inicialización de Componentes
     env_fields = MockEnvFields()
-    colony = Colony(initial_agents=args.agents, env_fields=env_fields)
+    
+    rl_policy = None
+    if args.model:
+        from stable_baselines3 import PPO
+        print(f"Cargando modelo RL desde {args.model}...")
+        rl_policy = PPO.load(args.model)
+        
+    colony = Colony(initial_agents=args.agents, env_fields=env_fields, rl_policy=rl_policy)
     
     visualizer = None
     if args.render:
