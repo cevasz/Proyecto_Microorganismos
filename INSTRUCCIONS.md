@@ -229,18 +229,18 @@ lstm:
 ## Checklist de hitos por fase
 
 ### Fase 1 — MVP ✓
-- [ ] Grid 2D con gradiente estático de glucosa funcional
-- [ ] Wrapper Gymnasium pasa `check_env()` sin errores
-- [ ] PPO entrena sin divergir (recompensa media creciente en primeros 200K pasos)
-- [ ] El agente supera al random walker en distancia media a la fuente (Mann-Whitney p < 0.05)
-- [ ] Visualización básica de trayectoria única operativa
+- [x] Grid 2D con gradiente estático de glucosa funcional
+- [x] Wrapper Gymnasium pasa `check_env()` sin errores
+- [x] PPO entrena sin divergir (recompensa media creciente en primeros 200K pasos)
+- [x] El agente supera al random walker en distancia media a la fuente (Mann-Whitney p < 0.05)
+- [x] Visualización básica de trayectoria única operativa
 
 ### Fase 2 — Biología Completa ✓
-- [ ] Neural ODE entrenada: MSE < 0.05 en validación de CheY-P
-- [ ] LSTM: precisión > 80% en predicción de división (F1 sobre clase positiva)
-- [ ] División celular activa: colonia crece de N₀=10 a N>50 en 10K pasos con glucosa abundante
-- [ ] Run lengths: KS-test p > 0.05 contra distribución exponencial de Berg & Brown
-- [ ] Sistema estable con N=100 agentes durante 50K pasos sin crash de memoria
+- [x] Neural ODE entrenada: MSE < 0.05 en validación de CheY-P
+- [x] LSTM: precisión > 80% en predicción de división (F1 sobre clase positiva)
+- [x] División celular activa: colonia crece de N₀=10 a N>50 en 10K pasos con glucosa abundante
+- [x] Run lengths: KS-test p > 0.05 contra distribución exponencial de Berg & Brown
+- [x] Sistema estable con N=100 agentes durante 50K pasos sin crash de memoria
 
 ### Fase 3 — Publicación ✓
 - [ ] Figura 1: comparativa trayectorias RL vs. random walker

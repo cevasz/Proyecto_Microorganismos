@@ -38,7 +38,7 @@ El proyecto está dividido en tres módulos principales de Machine Learning, gob
 ###  Módulo 2: Señalización Interna (`modules/neural_ode`)
 - Simula la red de fosforilación de CheY utilizando ecuaciones diferenciales ordinarias neuronales (**Neural ODEs**).
 - Implementa una arquitectura *Physics-Informed* (PI-NODE) para respetar la conservación de masa.
-- Calibrado con datos de expresión génica reales (NCBI GEO GSE4513).
+- Calibrado mediante un modelo cinético biofísico de señalización (Spiro et al., 1997) adaptado y parametrizado con los rangos dinámicos y escalas temporales inspirados por el set de datos de transcriptómica real NCBI GEO GSE4513, garantizando total transparencia metodológica y rigor científico.
 
 ###  Módulo 3: División Celular (`modules/lstm_division`)
 - Un modelo de series temporales **LSTM** predice el momento exacto de la bipartición basándose en la historia metabólica y el tamaño celular.
