@@ -3,6 +3,7 @@ import time
 import os
 import json
 import numpy as np
+from env.grid import EnvironmentFields
 
 # Soporte a rutas y módulos relativos
 try:
@@ -45,6 +46,10 @@ class MockEnvFields:
             return consumed
         return 0.0
 
+    def step(self):
+        """Mock no realiza pasos de difusión dinámica."""
+        pass
+
 def generate_report(runs_dir):
     """Generador ficticio para las figuras finales de evaluación"""
     print(f"\n[Post-Processing] Generando reporte final en {runs_dir}...")
@@ -61,6 +66,7 @@ def main():
     parser.add_argument("--render", type=bool, default=False, help="Habilitar visualización Pygame")
     parser.add_argument("--save-video", type=bool, default=False, help="Flag para guardar simulación a MP4")
     parser.add_argument("--model", type=str, default=None, help="Ruta del modelo PPO preentrenado (.zip)")
+    parser.add_argument("--dynamic-env", type=bool, default=True, help="Habilitar el entorno físico de difusión de EDPs real (FDM)")
     args = parser.parse_args()
     
     # 1. Configuración de Logging
@@ -71,8 +77,15 @@ def main():
     
     print(f"[START] Iniciando NeuroColony-EC | N_inicial={args.agents} | Pasos={args.steps}")
     
+    dt = 0.01  # Paso temporal biológico en segundos
+    
     # 2. Inicialización de Componentes
-    env_fields = MockEnvFields()
+    if args.dynamic_env:
+        print("Inicializando entorno físico de difusión FDM 2D (Glucosa + Oxígeno)...")
+        env_fields = EnvironmentFields(size=(100, 100), dx=1.0, dt=dt)
+    else:
+        print("Inicializando entorno Mock simplificado...")
+        env_fields = MockEnvFields()
     
     rl_policy = None
     if args.model:
@@ -86,12 +99,14 @@ def main():
     if args.render:
         visualizer = ColonyVisualizer()
         
-    dt = 0.01  # Paso temporal biológico en segundos
     start_time = time.time()
     
     # 3. Bucle Principal de Simulación
     with open(metrics_path, "w") as f_metrics:
         for step in range(args.steps):
+            
+            # Avanza la física de los campos químicos (difusión de glucosa y oxígeno)
+            env_fields.step()
             
             # Avanza la física e inteligencia del enjambre
             colony.step(dt)
