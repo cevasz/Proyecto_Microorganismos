@@ -4,29 +4,29 @@ import torch.nn as nn
 class DivisionLSTM(nn.Module):
     """
     Clasificador LSTM para predicción de división celular (Adder Model).
-    Fase 1 (MVP): Usa un stub que simula división cada 1200 pasos.
-    Fase 2: Predicción temporal en base a historial de longitud y energía.
+    Ref: Taheri-Araghi et al., Current Biology 25(3), 2015.
     """
-    def __init__(self, input_dim=3, hidden_dim=128, num_layers=2):
+    def __init__(self, input_dim=3, hidden_dim=128, num_layers=2, dropout=0.2):
         super().__init__()
-        # Arquitectura LSTM para Fase 2
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
+        # Arquitectura central LSTM con dropout
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True, dropout=dropout)
+        
+        # Head de clasificación
         self.classifier = nn.Sequential(
-            nn.Linear(hidden_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1)
+            nn.Linear(hidden_dim, 1),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
-        # x: [batch_size, sequence_length, features]
+        """
+        x: Tensor de tamaño (batch_size, sequence_length, input_dim)
+        Retorna P(división en los próximos 30 pasos) ∈ [0,1]
+        """
         out, _ = self.lstm(x)
-        logits = self.classifier(out[:, -1, :])
-        return torch.sigmoid(logits)
-        
+        # Se toma la salida del último estado de la secuencia
+        p_div = self.classifier(out[:, -1, :])
+        return p_div
+
     def predict_division_stub(self, steps_lived):
-        """
-        Stub de Fase 1: devuelve True si los pasos de vida superan un límite (ej. 1200).
-        """
-        if steps_lived >= 1200:
-            return True
-        return False
+        """Mantiene compatibilidad con módulos de Fase 1 durante la transición"""
+        return steps_lived >= 1200
