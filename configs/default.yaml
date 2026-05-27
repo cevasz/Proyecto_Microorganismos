@@ -1,7 +1,7 @@
 environment:
-  grid_size: [200, 200]        # μm × μm
-  dx: 1.0                      # μm por celda
-  dt: 0.01                     # s por paso
+  grid_size: [100, 100]        # celdas (dominio físico: 500μm × 500μm)
+  dx: 5.0                      # μm por celda (5μm resolución)
+  dt: 0.1                      # s por paso (timestep de difusión)
   D_glucose: 600               # μm²/s
   D_oxygen: 2000               # μm²/s
 
