@@ -1,0 +1,10 @@
+{"step": 0, "N_agentes": 20, "glucosa_media": 0.6574376401551085, "recompensa_media": -0.34256235984489136, "n_divisiones": 0}
+{"step": 100, "N_agentes": 20, "glucosa_media": 0.6621662729727975, "recompensa_media": -0.3378337270272026, "n_divisiones": 0}
+{"step": 200, "N_agentes": 20, "glucosa_media": 0.6621457281244203, "recompensa_media": -0.33785427187557976, "n_divisiones": 0}
+{"step": 300, "N_agentes": 20, "glucosa_media": 0.6602820545491744, "recompensa_media": -0.3397179454508257, "n_divisiones": 0}
+{"step": 400, "N_agentes": 20, "glucosa_media": 0.6530108104291151, "recompensa_media": -0.34698918957088487, "n_divisiones": 0}
+{"step": 500, "N_agentes": 20, "glucosa_media": 0.6519900762983734, "recompensa_media": -0.34800992370162664, "n_divisiones": 0}
+{"step": 600, "N_agentes": 20, "glucosa_media": 0.6518130505685942, "recompensa_media": -0.3481869494314059, "n_divisiones": 0}
+{"step": 700, "N_agentes": 20, "glucosa_media": 0.6473137407241343, "recompensa_media": -0.35268625927586583, "n_divisiones": 0}
+{"step": 800, "N_agentes": 20, "glucosa_media": 0.6422932088366806, "recompensa_media": -0.35770679116331927, "n_divisiones": 0}
+{"step": 900, "N_agentes": 20, "glucosa_media": 0.6339364695375131, "recompensa_media": -0.36606353046248696, "n_divisiones": 0}

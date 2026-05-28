@@ -1,17 +1,22 @@
+import sys
+import os
 import argparse
 import time
-import os
 import json
 import numpy as np
+
+# Inyección robusta del directorio raíz del proyecto en sys.path para evitar ModuleNotFoundError
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from env.grid import EnvironmentFields
 
 # Soporte a rutas y módulos relativos
 try:
     from simulation.colony import Colony
-    from simulation.visualizer import ColonyVisualizer
 except ImportError:
     from .colony import Colony
-    from .visualizer import ColonyVisualizer
 
 class MockEnvFields:
     """
@@ -58,15 +63,25 @@ def generate_report(runs_dir):
     print(" - Figura 3: Curva poblacional vs Logística Biológica generada.")
     print("[OK] Todas las figuras de validación han sido guardadas.")
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def main():
     parser = argparse.ArgumentParser(description="NeuroColony-EC: Runner Principal")
     parser.add_argument("--agents", type=int, default=10, help="Número inicial de agentes")
     parser.add_argument("--steps", type=int, default=50000, help="Pasos a simular")
     parser.add_argument("--config", type=str, default="configs/default.yaml", help="Ruta de hiperparámetros")
-    parser.add_argument("--render", type=bool, default=False, help="Habilitar visualización Pygame")
-    parser.add_argument("--save-video", type=bool, default=False, help="Flag para guardar simulación a MP4")
+    parser.add_argument("--render", type=str2bool, default=False, help="Habilitar visualización Pygame")
+    parser.add_argument("--save-video", type=str2bool, default=False, help="Flag para guardar simulación a MP4")
     parser.add_argument("--model", type=str, default=None, help="Ruta del modelo PPO preentrenado (.zip)")
-    parser.add_argument("--dynamic-env", type=bool, default=True, help="Habilitar el entorno físico de difusión de EDPs real (FDM)")
+    parser.add_argument("--dynamic-env", type=str2bool, default=True, help="Habilitar el entorno físico de difusión de EDPs real (FDM)")
     args = parser.parse_args()
     
     # 1. Configuración de Logging
@@ -97,6 +112,10 @@ def main():
     
     visualizer = None
     if args.render:
+        try:
+            from simulation.visualizer import ColonyVisualizer
+        except ImportError:
+            from .visualizer import ColonyVisualizer
         visualizer = ColonyVisualizer()
         
     start_time = time.time()
@@ -111,6 +130,10 @@ def main():
             # Avanza la física e inteligencia del enjambre
             colony.step(dt)
             
+            # Registrar estadísticas en cada paso para asegurar gráficas 100% correctas y continuas en el visualizador
+            if visualizer is not None:
+                visualizer.update_stats(step, dt, colony, env_fields)
+                
             # Renderizado (con subsampling cada 5 pasos para no limitar por GPU/CPU-bound)
             if args.render and (step % 5 == 0):
                 visualizer.draw(colony, env_fields, step, dt)
@@ -120,28 +143,36 @@ def main():
                 stats = colony.get_population_stats()
                 N = stats["N"]
                 
-                # Métricas reales de glucosa y recompensas calculadas desde el estado dinámico del enjambre
+                # Métricas reales y biológicas
                 if N > 0:
                     glucosa_media = float(np.mean([env_fields.get_observation(a.position[0], a.position[1])[0] for a in colony.agents]))
-                    # Recompensa biológica basada en cercanía al centro de glucosa (50, 50) con penalidad de -0.01 por µm
                     recompensa_media = float(np.mean([-np.linalg.norm(np.array(a.position) - env_fields.center) * 0.01 for a in colony.agents]))
+                    energia_media = float(np.mean([a.energy for a in colony.agents]))
+                    edad_media = float(np.mean([a.age for a in colony.agents]))
                 else:
                     glucosa_media = 0.0
                     recompensa_media = 0.0
+                    energia_media = 0.0
+                    edad_media = 0.0
+                
                 n_divisiones = sum([1 for a in colony.agents if a.age < (dt * 105)]) 
                 
                 log_data = {
                     "step": step,
                     "N_agentes": N,
                     "glucosa_media": glucosa_media,
+                    "energia_media": energia_media,
+                    "edad_media": edad_media,
                     "recompensa_media": recompensa_media,
-                    "n_divisiones": n_divisiones
+                    "n_divisiones": n_divisiones,
+                    "agentes_pos": [[a.position[0], a.position[1], float(a.energy), int(a.last_action), list(a.pos_history)] for a in colony.agents],
+                    "campo_glucosa": env_fields.glucose.tolist() if hasattr(env_fields, "glucose") else None
                 }
                 f_metrics.write(json.dumps(log_data) + "\n")
                 
                 # Update en consola (cada 1000 pasos)
                 if step % 1000 == 0:
-                    print(f"Step {step:05d}/{args.steps} | Agentes: {N:04d} | Divs: {n_divisiones} | Nutrientes Restantes: {env_fields.nutrients:.2f}")
+                    print(f"Step {step:05d}/{args.steps} | Agentes: {N:04d} | Energy: {energia_media:.2f} | Divs: {n_divisiones}")
                     
             # Condición de extinción
             if colony.get_population_stats()["N"] == 0:

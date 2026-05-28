@@ -1,0 +1,10 @@
+{
+    "n_samples": 2407929,
+    "mean_run_duration_RL": 1.3885151147842407,
+    "mean_run_duration_Bio": 0.86,
+    "ks_statistic": 0.7914023074831222,
+    "ks_p_value": 0.0,
+    "chi_empirical": 244.98785242572578,
+    "chi_biological": 210.0,
+    "success": false
+}
