@@ -19,13 +19,37 @@ class Colony:
         self.neural_ode = PINode(state_dim=4, hidden_dim=64)
         self.division_model = DivisionLSTM(input_dim=3, hidden_dim=128, num_layers=2, dropout=0.2)
         
+        # Cargar pesos entrenados para LSTM de división si están disponibles
+        import os
+        lstm_path = "models/lstm_division_best.pt"
+        if os.path.exists(lstm_path):
+            try:
+                self.division_model.load_state_dict(torch.load(lstm_path, map_location=torch.device('cpu')))
+                print(f"[Colony] Modelo de división celular LSTM cargado con éxito desde {lstm_path}")
+            except Exception as e:
+                print(f"[Colony] Advertencia al cargar {lstm_path}: {e}. Usando inicialización estocástica.")
+        
         # Poner los modelos en modo de evaluación para desactivar dropout/etc y acelerar
         self.neural_ode.eval()
         self.division_model.eval()
         
-        # Spawn inicial
+        # Spawn inicial: concentrado cerca de la fuente de nutrientes para asegurar viabilidad inicial de la colonia
         for _ in range(initial_agents):
-            pos = (np.random.uniform(0, 100), np.random.uniform(0, 100))
+            if env_fields is not None and hasattr(env_fields, "center"):
+                # Si hay un centro de recursos, spawnear alrededor de él
+                cx, cy = env_fields.center[0], env_fields.center[1]
+                # En el entorno real (dynamic), el centro de glucosa está en X=0, Y=50.
+                # En el entorno mock, el centro está en X=50, Y=50.
+                if cx == 0.0:
+                    # Borde izquierdo: spawnear en X entre 2 y 35, Y entre 20 y 80
+                    pos = (np.random.uniform(2, 35), np.random.uniform(20, 80))
+                else:
+                    # Centro: spawnear en un radio alrededor del centro
+                    r = np.random.uniform(5, 30)
+                    theta = np.random.uniform(0, 2 * np.pi)
+                    pos = (cx + r * np.cos(theta), cy + r * np.sin(theta))
+            else:
+                pos = (np.random.uniform(20, 80), np.random.uniform(20, 80))
             self.agents.append(Bacterium(position=pos))
 
     def step(self, dt=0.01):

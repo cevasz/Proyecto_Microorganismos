@@ -25,7 +25,9 @@ class Bacterium:
         self.is_divided = False
         self.is_dead = False
         self.history = deque(maxlen=60)  # Buffer eficiente O(1) para entrada de LSTM (máx 60 muestras)
-        
+        self.pos_history = deque(maxlen=10) # Buffer para estelas de movimiento (trails)
+        self.last_action = 0
+
         # Constantes de movimiento biológico
         self.run_speed = 25.0  # μm/s
 
@@ -35,12 +37,13 @@ class Bacterium:
         metabolismo y buffer de historial para LSTM basándose en la acción decidida.
         """
         self.age += int(dt * 1000)
-        
+        self.last_action = action
+        self.pos_history.append(list(self.position))
         # Cinemática: 0 = Run, 1 = Tumble
         if action == 0:
             # Ejecuta Run (avance recto)
-            self.position[0] += np.cos(self.orientation) * self.run_speed * dt
-            self.position[1] += np.sin(self.orientation) * self.run_speed * dt
+            self.position[0] = float(np.clip(self.position[0] + np.cos(self.orientation) * self.run_speed * dt, 0.0, 100.0))
+            self.position[1] = float(np.clip(self.position[1] + np.sin(self.orientation) * self.run_speed * dt, 0.0, 100.0))
         else:
             # Ejecuta Tumble (cambio abrupto de orientación aleatorio)
             self.orientation += np.random.normal(0, np.pi/2) 
@@ -48,7 +51,8 @@ class Bacterium:
         # Consumo metabólico e impacto ambiental
         nutriente_consumido = env_fields.consume(self.position[0], self.position[1], self.metabolic_rate * dt)
         if nutriente_consumido > 0:
-            self.energy = min(1.0, self.energy + (nutriente_consumido * 0.1))
+            # Multiplicador aumentado a 4.0 para corregir el balance de energía: comer permite recuperar energía y tener ganancia neta
+            self.energy = min(1.0, self.energy + (nutriente_consumido * 4.0) - (self.metabolic_rate * dt))
         else:
             self.energy -= (self.metabolic_rate * dt)
             
