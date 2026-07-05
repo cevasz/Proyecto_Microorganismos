@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>NeuroColony-EC · Esquemático Intracelular de E. coli</title>
+<meta name="description" content="Corte esquemático de ingeniería de una célula de E. coli como microfábrica: circuitos metabólicos, ribosomas ensambladores y nucleoide en transcripción. Telemetría del modelo (LSTM de división)." />
+<style>
+  :root{
+    --bg:#070a0f; --bg2:#0a0e15; --panel:#0d121b; --panel2:#0f1622;
+    --line:#182432; --line2:#243545; --line3:#33485c;
+    --ink:#cad8e4; --ink2:#7f97a9; --ink3:#4b5e6d;
+    --cyan:#5ec8dc; --cyan-d:#2f6675; --cyan-dim:#22424d;
+    --amber:#e3a63f; --amber-d:#8a6520;
+    --mint:#79d6a6; --hot:#c8f4fb; --violet:#9d8bf2;
+    --warn:#e07b46;
+    --mono:ui-monospace,"JetBrains Mono","SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    --grid:#0e1621;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--mono);
+    -webkit-font-smoothing:antialiased; letter-spacing:.2px;
+    background-image:
+      linear-gradient(var(--grid) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:40px 40px,40px 40px;
+  }
+  .sheet{max-width:1440px;margin:0 auto;padding:18px clamp(12px,2.4vw,26px) 34px;}
+
+  /* Title block (engineering drawing header) */
+  .titleblock{border:1px solid var(--line2);background:linear-gradient(180deg,var(--panel),var(--bg2));
+    display:grid;grid-template-columns:auto 1fr auto;align-items:stretch;margin-bottom:14px}
+  .tb-cell{padding:11px 16px;border-right:1px solid var(--line2)}
+  .tb-cell:last-child{border-right:none}
+  .tb-k{font-size:9.5px;letter-spacing:1.4px;color:var(--ink3);text-transform:uppercase}
+  .tb-v{font-size:13px;color:var(--ink);margin-top:3px;white-space:nowrap}
+  .tb-main{display:flex;align-items:center;gap:14px}
+  .glyph{width:34px;height:34px;flex:none;position:relative}
+  .glyph svg{display:block}
+  .tb-title{font-size:clamp(15px,2vw,20px);font-weight:700;letter-spacing:1px;color:var(--ink)}
+  .tb-title b{color:var(--cyan)}
+  .tb-sub{font-size:10.5px;letter-spacing:.6px;color:var(--ink2);margin-top:2px}
+  .tb-right{display:flex}
+  @media(max-width:820px){.titleblock{grid-template-columns:1fr}.tb-cell{border-right:none;border-bottom:1px solid var(--line2)}.tb-right{display:none}}
+
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+
+  .card{border:1px solid var(--line2);background:linear-gradient(180deg,var(--panel),var(--bg2));position:relative}
+  .card::before,.card::after{content:"";position:absolute;width:7px;height:7px;border:1px solid var(--line3)}
+  .card::before{top:-1px;left:-1px;border-right:none;border-bottom:none}
+  .card::after{bottom:-1px;right:-1px;border-left:none;border-top:none}
+  .card-h{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);
+    font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--cyan)}
+  .card-h .rd{color:var(--ink3);margin-left:auto;font-size:9.5px;letter-spacing:1px}
+
+  /* Stage */
+  .stage{position:relative;width:100%;aspect-ratio:16/10;background:
+      radial-gradient(120% 90% at 50% 45%, #0b111a 0%, #070a10 70%)}
+  #cell{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .stage .ov{position:absolute;font-size:10px;letter-spacing:.8px;color:var(--ink2);pointer-events:none}
+  .stage .tl{top:9px;left:11px;color:var(--ink3)}
+  .stage .tr{top:9px;right:11px;text-align:right}
+  .stage .status{display:inline-block;padding:2px 7px;border:1px solid var(--line2);color:var(--cyan);background:rgba(10,16,24,.6)}
+  .stage .phase{color:var(--amber)}
+
+  /* Transport */
+  .console{display:flex;align-items:center;gap:12px;padding:10px 12px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .btn{cursor:pointer;border:1px solid var(--line3);background:var(--panel2);color:var(--ink);font:600 12px var(--mono);
+    letter-spacing:.5px;height:34px;padding:0 13px;display:inline-flex;align-items:center;gap:7px;transition:.14s}
+  .btn:hover{border-color:var(--cyan);color:var(--cyan)}
+  .btn.primary{background:linear-gradient(180deg,#123039,#0d222a);border-color:var(--cyan-d);color:var(--cyan);min-width:120px;justify-content:center}
+  .btn.icon{width:34px;padding:0;justify-content:center}
+  .scrub{flex:1;min-width:150px;display:flex;align-items:center;gap:9px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;background:var(--line3);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--cyan);
+    border:2px solid #0a1016;box-shadow:0 0 8px rgba(94,200,220,.5);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:2px solid #0a1016;background:var(--cyan);cursor:pointer}
+  .speed{display:flex;gap:2px;border:1px solid var(--line2);padding:2px}
+  .speed button{cursor:pointer;border:none;background:transparent;color:var(--ink3);font:600 11px var(--mono);padding:5px 8px}
+  .speed button.on{background:var(--panel2);color:var(--cyan)}
+
+  /* Telemetry */
+  .tele{padding:10px 12px;display:flex;flex-direction:column;gap:12px}
+  .bigrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{border:1px solid var(--line);background:var(--bg2);padding:8px 9px}
+  .stat .k{font-size:9px;letter-spacing:1px;color:var(--ink3);text-transform:uppercase}
+  .stat .v{font-size:20px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+  .stat .u{font-size:10px;color:var(--ink3)}
+  .scope{border:1px solid var(--line);background:var(--bg2)}
+  .scope-h{display:flex;justify-content:space-between;padding:6px 8px 2px;font-size:9.5px;letter-spacing:.8px;color:var(--ink2);text-transform:uppercase}
+  .scope-h b{font-variant-numeric:tabular-nums;font-weight:700}
+  #tele{width:100%;height:184px;display:block}
+  .legend{display:flex;flex-wrap:wrap;gap:9px;padding:2px 2px 0;font-size:9.5px;color:var(--ink2)}
+  .legend i{display:inline-block;width:9px;height:3px;margin-right:4px;vertical-align:middle}
+
+  .subsys{padding:10px 12px;border-top:1px solid var(--line)}
+  .subsys .row{display:flex;gap:9px;padding:6px 0;border-bottom:1px dashed var(--line);align-items:baseline}
+  .subsys .row:last-child{border-bottom:none}
+  .subsys .rc{width:10px;height:10px;flex:none;position:relative;top:2px}
+  .subsys .rt{font-size:11px;color:var(--ink)}
+  .subsys .rd{font-size:10px;color:var(--ink3);margin-left:auto;letter-spacing:.5px}
+
+  footer{margin-top:14px;border-top:1px solid var(--line);padding-top:10px;display:flex;gap:12px;flex-wrap:wrap;
+    color:var(--ink3);font-size:10px;letter-spacing:.5px}
+  footer .sp{margin-left:auto}
+  .err{color:var(--warn);padding:20px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="titleblock">
+    <div class="tb-cell tb-main">
+      <span class="glyph"><svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+        <rect x="2.5" y="9" width="29" height="16" rx="8" stroke="#5ec8dc" stroke-width="1.2"/>
+        <circle cx="17" cy="17" r="4.4" stroke="#c8f4fb" stroke-width="1.1"/>
+        <path d="M6 17h4M24 17h4M17 4v4M17 26v4" stroke="#2f6675" stroke-width="1"/>
+      </svg></span>
+      <div>
+        <div class="tb-title">Neuro<b>Colony</b>-EC</div>
+        <div class="tb-sub">ESQUEMÁTICO INTRACELULAR · <i>Escherichia coli</i> K-12 · vista de microfábrica</div>
+      </div>
+    </div>
+    <div class="tb-cell" style="display:flex;align-items:center">
+      <div style="font-size:10.5px;color:var(--ink2);line-height:1.5">
+        Célula única en corte. La maquinaria (circuitos metabólicos, ribosomas, nucleoide)
+        se anima con la telemetría de la simulación; P(división) proviene del <b style="color:var(--cyan)">LSTM entrenado</b>.
+      </div>
+    </div>
+    <div class="tb-right">
+      <div class="tb-cell"><div class="tb-k">Escala</div><div class="tb-v">2.0 µm</div></div>
+      <div class="tb-cell"><div class="tb-k">Vista</div><div class="tb-v">CUTAWAY·A</div></div>
+      <div class="tb-cell"><div class="tb-k">Rev</div><div class="tb-v" id="rev">2.0</div></div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="card">
+      <div class="card-h">Corte esquemático · maquinaria celular <span class="rd" id="scalerd">DWG · NC-EC/CELL-01</span></div>
+      <div class="stage">
+        <canvas id="cell"></canvas>
+        <div class="ov tl" id="clock">t = 0.00 s</div>
+        <div class="ov tr"><span class="status" id="status">EN LÍNEA</span> &nbsp; <span class="phase" id="phase">—</span></div>
+      </div>
+      <div class="console">
+        <button class="btn primary" id="play">▶ EJECUTAR</button>
+        <button class="btn icon" id="restart" title="Reiniciar">⟲</button>
+        <div class="scrub"><input type="range" id="seek" min="0" max="100" value="0"/></div>
+        <div class="speed" id="speed">
+          <button data-s="0.5">0.5×</button><button data-s="1" class="on">1×</button>
+          <button data-s="2">2×</button><button data-s="4">4×</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Telemetría <span class="rd">SENSORES · T-BUS</span></div>
+      <div class="tele">
+        <div class="bigrow">
+          <div class="stat"><div class="k">ATP / Energía</div><div class="v" id="s-atp" style="color:var(--amber)">–</div><div class="u">carga celular</div></div>
+          <div class="stat"><div class="k">P(División)</div><div class="v" id="s-div" style="color:var(--cyan)">–</div><div class="u">LSTM · adder</div></div>
+        </div>
+        <div class="scope">
+          <div class="scope-h"><span>Osciloscopio · señales internas</span><b id="scope-t">t=0.0s</b></div>
+          <canvas id="tele"></canvas>
+          <div class="legend" style="padding:0 8px 8px">
+            <span><i style="background:var(--amber)"></i>ATP</span>
+            <span><i style="background:var(--mint)"></i>Nutriente</span>
+            <span><i style="background:var(--hot)"></i>Transcripción</span>
+            <span><i style="background:var(--cyan)"></i>Traducción</span>
+            <span><i style="background:var(--violet)"></i>P(div)</span>
+          </div>
+        </div>
+        <div class="stat" style="display:flex;justify-content:space-between;align-items:baseline">
+          <div><div class="k">Colonia (contexto)</div><div class="u" style="margin-top:2px">población · escenario PPO</div></div>
+          <div class="v" id="s-pop" style="color:var(--ink)">–</div>
+        </div>
+      </div>
+      <div class="subsys">
+        <div class="row"><span class="rc" style="background:var(--hot)"></span><span class="rt">Nucleoide / ADN</span><span class="rd">TRANSCRIPCIÓN</span></div>
+        <div class="row"><span class="rc" style="background:var(--cyan)"></span><span class="rt">Ribosomas · ensambladores</span><span class="rd" id="rib-n">RIB ×2</span></div>
+        <div class="row"><span class="rc" style="background:var(--amber)"></span><span class="rt">Ruta glucolítica · bus ATP</span><span class="rd">FLUJO</span></div>
+        <div class="row"><span class="rc" style="background:var(--mint)"></span><span class="rt">Proteínas plegadas</span><span class="rd" id="prot-n">Σ 0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Membrana: envoltura de ingeniería · paneles hexagonales</span>
+    <span>·</span><span>Quimiorreceptores en polo (CheA/CheY)</span>
+    <span class="sp">Demostración de portafolio · Biología Sintética Computacional</span>
+  </footer>
+</div>
+
+<script>window.__EMBED__={"cell":{"dt":0.01,"n_frames":256,"divisions":8,"events":[21,43,65,86,130,194,218,240],"frames":[{"t":0.0,"energy":0.856,"nutrient":0.8998,"length":1.004,"cycle":0.0042,"pdiv":0.0,"div":0},{"t":0.04,"energy":0.88,"nutrient":0.8998,"length":1.021,"cycle":0.0215,"pdiv":0.0,"div":0},{"t":0.08,"energy":0.904,"nutrient":0.8998,"length":1.039,"cycle":0.039,"pdiv":0.0,"div":0},{"t":0.12,"energy":0.9279,"nutrient":0.8997,"length":1.057,"cycle":0.0569,"pdiv":0.0,"div":0},{"t":0.16,"energy":0.9519,"nutrient":0.8997,"length":1.075,"cycle":0.0751,"pdiv":0.0,"div":0},{"t":0.2,"energy":0.9759,"nutrient":0.8996,"length":1.094,"cycle":0.0937,"pdiv":0.0,"div":0},{"t":0.24,"energy":0.9999,"nutrient":0.8996,"length":1.113,"cycle":0.1126,"pdiv":0.0,"div":0},{"t":0.28,"energy":1.0,"nutrient":0.8995,"length":1.132,"cycle":0.1317,"pdiv":0.0,"div":0},{"t":0.32,"energy":1.0,"nutrient":0.8994,"length":1.151,"cycle":0.1507,"pdiv":0.0,"div":0},{"t":0.36,"energy":1.0,"nutrient":0.8993,"length":1.17,"cycle":0.1698,"pdiv":0.0,"div":0},{"t":0.4,"energy":1.0,"nutrient":0.8992,"length":1.189,"cycle":0.1888,"pdiv":0.0,"div":0},{"t":0.44,"energy":1.0,"nutrient":0.8991,"length":1.208,"cycle":0.2079,"pdiv":0.0,"div":0},{"t":0.48,"energy":1.0,"nutrient":0.899,"length":1.227,"cycle":0.2269,"pdiv":0.0,"div":0},{"t":0.52,"energy":1.0,"nutrient":0.8989,"length":1.246,"cycle":0.2459,"pdiv":0.0,"div":0},{"t":0.56,"energy":1.0,"nutrient":0.8987,"length":1.265,"cycle":0.265,"pdiv":0.0,"div":0},{"t":0.6,"energy":1.0,"nutrient":0.8985,"length":1.284,"cycle":0.284,"pdiv":0.0171,"div":0},{"t":0.64,"energy":1.0,"nutrient":0.8983,"length":1.303,"cycle":0.3031,"pdiv":0.0169,"div":0},{"t":0.68,"energy":1.0,"nutrient":0.8981,"length":1.322,"cycle":0.3221,"pdiv":0.0217,"div":0},{"t":0.72,"energy":1.0,"nutrient":0.8979,"length":1.341,"cycle":0.3412,"pdiv":0.0405,"div":0},{"t":0.76,"energy":1.0,"nutrient":0.8976,"length":1.36,"cycle":0.3602,"pdiv":0.121,"div":0},{"t":0.8,"energy":1.0,"nutrient":0.8973,"length":1.379,"cycle":0.3793,"pdiv":0.5028,"div":0},{"t":0.83,"energy":1.0,"nutrient":0.897,"length":1.0,"cycle":0.0,"pdiv":0.8995,"div":1},{"t":0.84,"energy":1.0,"nutrient":0.8969,"length":1.005,"cycle":0.0048,"pdiv":0.0,"div":0},{"t":0.88,"energy":1.0,"nutrient":0.8965,"length":1.024,"cycle":0.0238,"pdiv":0.0,"div":0},{"t":0.92,"energy":1.0,"nutrient":0.8961,"length":1.043,"cycle":0.0429,"pdiv":0.0,"div":0},{"t":0.96,"energy":1.0,"nutrient":0.8956,"length":1.062,"cycle":0.0619,"pdiv":0.0,"div":0},{"t":1.0,"energy":1.0,"nutrient":0.8951,"length":1.081,"cycle":0.081,"pdiv":0.0,"div":0},{"t":1.04,"energy":1.0,"nutrient":0.8945,"length":1.1,"cycle":0.1,"pdiv":0.0,"div":0},{"t":1.08,"energy":1.0,"nutrient":0.8938,"length":1.119,"cycle":0.119,"pdiv":0.0,"div":0},{"t":1.12,"energy":1.0,"nutrient":0.8931,"length":1.138,"cycle":0.1381,"pdiv":0.0,"div":0},{"t":1.16,"energy":1.0,"nutrient":0.8922,"length":1.157,"cycle":0.1571,"pdiv":0.0,"div":0},{"t":1.2,"energy":1.0,"nutrient":0.8913,"length":1.176,"cycle":0.1762,"pdiv":0.0,"div":0},{"t":1.24,"energy":1.0,"nutrient":0.8903,"length":1.195,"cycle":0.1952,"pdiv":0.0,"div":0},{"t":1.28,"energy":1.0,"nutrient":0.8893,"length":1.214,"cycle":0.2143,"pdiv":0.0,"div":0},{"t":1.32,"energy":1.0,"nutrient":0.8881,"length":1.233,"cycle":0.2333,"pdiv":0.0,"div":0},{"t":1.36,"energy":1.0,"nutrient":0.8867,"length":1.252,"cycle":0.2524,"pdiv":0.0,"div":0},{"t":1.4,"energy":1.0,"nutrient":0.8853,"length":1.271,"cycle":0.2714,"pdiv":0.0,"div":0},{"t":1.44,"energy":1.0,"nutrient":0.8837,"length":1.29,"cycle":0.2905,"pdiv":0.0058,"div":0},{"t":1.48,"energy":1.0,"nutrient":0.882,"length":1.31,"cycle":0.3095,"pdiv":0.0073,"div":0},{"t":1.52,"energy":1.0,"nutrient":0.8801,"length":1.329,"cycle":0.3286,"pdiv":0.0132,"div":0},{"t":1.56,"energy":1.0,"nutrient":0.8781,"length":1.348,"cycle":0.3476,"pdiv":0.0364,"div":0},{"t":1.6,"energy":1.0,"nutrient":0.8759,"length":1.367,"cycle":0.3667,"pdiv":0.1655,"div":0},{"t":1.64,"energy":1.0,"nutrient":0.8734,"length":1.386,"cycle":0.3857,"pdiv":0.7097,"div":0},{"t":1.66,"energy":1.0,"nutrient":0.8722,"length":1.0,"cycle":0.0,"pdiv":0.9233,"div":1},{"t":1.68,"energy":1.0,"nutrient":0.8708,"length":1.01,"cycle":0.0095,"pdiv":0.0,"div":0},{"t":1.72,"energy":1.0,"nutrient":0.868,"length":1.029,"cycle":0.0286,"pdiv":0.0,"div":0},{"t":1.76,"energy":1.0,"nutrient":0.8649,"length":1.048,"cycle":0.0476,"pdiv":0.0,"div":0},{"t":1.8,"energy":1.0,"nutrient":0.8616,"length":1.067,"cycle":0.0667,"pdiv":0.0,"div":0},{"t":1.84,"energy":1.0,"nutrient":0.8581,"length":1.086,"cycle":0.0857,"pdiv":0.0,"div":0},{"t":1.88,"energy":1.0,"nutrient":0.8543,"length":1.105,"cycle":0.1048,"pdiv":0.0,"div":0},{"t":1.92,"energy":1.0,"nutrient":0.8502,"length":1.124,"cycle":0.1238,"pdiv":0.0,"div":0},{"t":1.96,"energy":1.0,"nutrient":0.8458,"length":1.143,"cycle":0.1429,"pdiv":0.0,"div":0},{"t":2.0,"energy":1.0,"nutrient":0.8411,"length":1.162,"cycle":0.1619,"pdiv":0.0,"div":0},{"t":2.04,"energy":1.0,"nutrient":0.836,"length":1.181,"cycle":0.181,"pdiv":0.0,"div":0},{"t":2.08,"energy":1.0,"nutrient":0.8306,"length":1.2,"cycle":0.2,"pdiv":0.0,"div":0},{"t":2.12,"energy":1.0,"nutrient":0.8249,"length":1.219,"cycle":0.219,"pdiv":0.0,"div":0},{"t":2.16,"energy":1.0,"nutrient":0.8188,"length":1.238,"cycle":0.2381,"pdiv":0.0,"div":0},{"t":2.2,"energy":1.0,"nutrient":0.8124,"length":1.257,"cycle":0.2571,"pdiv":0.0,"div":0},{"t":2.24,"energy":1.0,"nutrient":0.8055,"length":1.276,"cycle":0.2762,"pdiv":0.0,"div":0},{"t":2.28,"energy":1.0,"nutrient":0.7982,"length":1.295,"cycle":0.2952,"pdiv":0.006,"div":0},{"t":2.32,"energy":1.0,"nutrient":0.7905,"length":1.314,"cycle":0.3143,"pdiv":0.0082,"div":0},{"t":2.36,"energy":1.0,"nutrient":0.7824,"length":1.333,"cycle":0.3333,"pdiv":0.0162,"div":0},{"t":2.4,"energy":1.0,"nutrient":0.7739,"length":1.352,"cycle":0.3524,"pdiv":0.0507,"div":0},{"t":2.44,"energy":1.0,"nutrient":0.7649,"length":1.371,"cycle":0.3714,"pdiv":0.2541,"div":0},{"t":2.48,"energy":1.0,"nutrient":0.7555,"length":1.39,"cycle":0.3905,"pdiv":0.8408,"div":0},{"t":2.49,"energy":1.0,"nutrient":0.7531,"length":1.0,"cycle":0.0,"pdiv":0.9233,"div":1},{"t":2.52,"energy":1.0,"nutrient":0.7456,"length":1.014,"cycle":0.0143,"pdiv":0.0,"div":0},{"t":2.56,"energy":1.0,"nutrient":0.7353,"length":1.033,"cycle":0.0333,"pdiv":0.0,"div":0},{"t":2.6,"energy":1.0,"nutrient":0.7245,"length":1.052,"cycle":0.0524,"pdiv":0.0,"div":0},{"t":2.64,"energy":1.0,"nutrient":0.7133,"length":1.071,"cycle":0.0714,"pdiv":0.0,"div":0},{"t":2.68,"energy":1.0,"nutrient":0.7016,"length":1.09,"cycle":0.0905,"pdiv":0.0,"div":0},{"t":2.72,"energy":1.0,"nutrient":0.6894,"length":1.11,"cycle":0.1095,"pdiv":0.0,"div":0},{"t":2.76,"energy":1.0,"nutrient":0.6768,"length":1.129,"cycle":0.1286,"pdiv":0.0,"div":0},{"t":2.8,"energy":1.0,"nutrient":0.6637,"length":1.148,"cycle":0.1476,"pdiv":0.0,"div":0},{"t":2.84,"energy":1.0,"nutrient":0.6502,"length":1.167,"cycle":0.1667,"pdiv":0.0,"div":0},{"t":2.88,"energy":1.0,"nutrient":0.6363,"length":1.186,"cycle":0.1857,"pdiv":0.0,"div":0},{"t":2.92,"energy":1.0,"nutrient":0.622,"length":1.205,"cycle":0.2048,"pdiv":0.0,"div":0},{"t":2.96,"energy":1.0,"nutrient":0.6073,"length":1.224,"cycle":0.2238,"pdiv":0.0,"div":0},{"t":3.0,"energy":0.9998,"nutrient":0.5922,"length":1.243,"cycle":0.2429,"pdiv":0.0,"div":0},{"t":3.04,"energy":0.9984,"nutrient":0.5767,"length":1.262,"cycle":0.2619,"pdiv":0.0,"div":0},{"t":3.08,"energy":0.9957,"nutrient":0.561,"length":1.281,"cycle":0.2809,"pdiv":0.0,"div":0},{"t":3.12,"energy":0.9918,"nutrient":0.5449,"length":1.3,"cycle":0.2998,"pdiv":0.0061,"div":0},{"t":3.16,"energy":0.9866,"nutrient":0.5286,"length":1.319,"cycle":0.3187,"pdiv":0.009,"div":0},{"t":3.2,"energy":0.98,"nutrient":0.512,"length":1.338,"cycle":0.3375,"pdiv":0.0193,"div":0},{"t":3.24,"energy":0.9722,"nutrient":0.4953,"length":1.356,"cycle":0.3562,"pdiv":0.0652,"div":0},{"t":3.28,"energy":0.9629,"nutrient":0.4783,"length":1.375,"cycle":0.3748,"pdiv":0.3358,"div":0},{"t":3.32,"energy":0.9523,"nutrient":0.4613,"length":1.0,"cycle":0.0,"pdiv":0.8999,"div":1},{"t":3.36,"energy":0.9404,"nutrient":0.4441,"length":1.018,"cycle":0.0183,"pdiv":0.0,"div":0},{"t":3.4,"energy":0.9271,"nutrient":0.4269,"length":1.036,"cycle":0.0363,"pdiv":0.0,"div":0},{"t":3.44,"energy":0.9123,"nutrient":0.4097,"length":1.054,"cycle":0.0542,"pdiv":0.0,"div":0},{"t":3.48,"energy":0.8963,"nutrient":0.3926,"length":1.072,"cycle":0.0719,"pdiv":0.0,"div":0},{"t":3.52,"energy":0.8788,"nutrient":0.3755,"length":1.089,"cycle":0.0893,"pdiv":0.0,"div":0},{"t":3.56,"energy":0.86,"nutrient":0.3586,"length":1.106,"cycle":0.1064,"pdiv":0.0,"div":0},{"t":3.6,"energy":0.8399,"nutrient":0.3419,"length":1.123,"cycle":0.1233,"pdiv":0.0,"div":0},{"t":3.64,"energy":0.8184,"nutrient":0.3254,"length":1.14,"cycle":0.1399,"pdiv":0.0,"div":0},{"t":3.68,"energy":0.7956,"nutrient":0.3092,"length":1.156,"cycle":0.1561,"pdiv":0.0,"div":0},{"t":3.72,"energy":0.7716,"nutrient":0.2934,"length":1.172,"cycle":0.172,"pdiv":0.0,"div":0},{"t":3.76,"energy":0.7462,"nutrient":0.278,"length":1.188,"cycle":0.1876,"pdiv":0.0,"div":0},{"t":3.8,"energy":0.7197,"nutrient":0.263,"length":1.203,"cycle":0.2028,"pdiv":0.0,"div":0},{"t":3.84,"energy":0.692,"nutrient":0.2485,"length":1.218,"cycle":0.2176,"pdiv":0.0,"div":0},{"t":3.88,"energy":0.6632,"nutrient":0.2346,"length":1.232,"cycle":0.232,"pdiv":0.0,"div":0},{"t":3.92,"energy":0.6333,"nutrient":0.2212,"length":1.246,"cycle":0.2459,"pdiv":0.0002,"div":0},{"t":3.96,"energy":0.6024,"nutrient":0.2085,"length":1.259,"cycle":0.2595,"pdiv":0.0002,"div":0},{"t":4.0,"energy":0.5705,"nutrient":0.1966,"length":1.273,"cycle":0.2726,"pdiv":0.0002,"div":0},{"t":4.04,"energy":0.5376,"nutrient":0.1853,"length":1.285,"cycle":0.2852,"pdiv":0.0002,"div":0},{"t":4.08,"energy":0.5039,"nutrient":0.1748,"length":1.297,"cycle":0.2973,"pdiv":0.0002,"div":0},{"t":4.12,"energy":0.4694,"nutrient":0.1652,"length":1.309,"cycle":0.309,"pdiv":0.0003,"div":0},{"t":4.16,"energy":0.4342,"nutrient":0.1564,"length":1.32,"cycle":0.3201,"pdiv":0.0003,"div":0},{"t":4.2,"energy":0.3983,"nutrient":0.1485,"length":1.331,"cycle":0.3308,"pdiv":0.0004,"div":0},{"t":4.24,"energy":0.3618,"nutrient":0.1415,"length":1.341,"cycle":0.3409,"pdiv":0.0004,"div":0},{"t":4.28,"energy":0.3248,"nutrient":0.1354,"length":1.351,"cycle":0.3505,"pdiv":0.0005,"div":0},{"t":4.32,"energy":0.2874,"nutrient":0.1304,"length":1.36,"cycle":0.3596,"pdiv":0.0005,"div":0},{"t":4.36,"energy":0.2496,"nutrient":0.1263,"length":1.368,"cycle":0.3681,"pdiv":0.0005,"div":0},{"t":4.4,"energy":0.2116,"nutrient":0.1232,"length":1.376,"cycle":0.3761,"pdiv":0.0005,"div":0},{"t":4.44,"energy":0.1733,"nutrient":0.1212,"length":1.384,"cycle":0.3835,"pdiv":0.0005,"div":0},{"t":4.48,"energy":0.1349,"nutrient":0.1201,"length":1.39,"cycle":0.3904,"pdiv":0.0005,"div":0},{"t":4.52,"energy":0.0965,"nutrient":0.1201,"length":1.397,"cycle":0.3968,"pdiv":0.0005,"div":0},{"t":4.56,"energy":0.0582,"nutrient":0.1212,"length":1.403,"cycle":0.4026,"pdiv":0.0005,"div":0},{"t":4.6,"energy":0.02,"nutrient":0.1232,"length":1.408,"cycle":0.4078,"pdiv":0.0005,"div":0},{"t":4.64,"energy":0.0,"nutrient":0.1263,"length":1.413,"cycle":0.4126,"pdiv":0.0005,"div":0},{"t":4.68,"energy":0.0,"nutrient":0.1304,"length":1.417,"cycle":0.4174,"pdiv":0.0005,"div":0},{"t":4.72,"energy":0.0,"nutrient":0.1354,"length":1.422,"cycle":0.4221,"pdiv":0.0005,"div":0},{"t":4.76,"energy":0.0,"nutrient":0.1415,"length":1.427,"cycle":0.4269,"pdiv":0.0006,"div":0},{"t":4.8,"energy":0.0,"nutrient":0.1485,"length":1.432,"cycle":0.4317,"pdiv":0.0007,"div":0},{"t":4.84,"energy":0.0,"nutrient":0.1564,"length":1.436,"cycle":0.4364,"pdiv":0.0009,"div":0},{"t":4.88,"energy":0.0,"nutrient":0.1652,"length":1.441,"cycle":0.4412,"pdiv":0.0012,"div":0},{"t":4.92,"energy":0.0,"nutrient":0.1748,"length":1.446,"cycle":0.446,"pdiv":0.0015,"div":0},{"t":4.96,"energy":0.0,"nutrient":0.1853,"length":1.451,"cycle":0.4507,"pdiv":0.002,"div":0},{"t":5.0,"energy":0.0,"nutrient":0.1966,"length":1.455,"cycle":0.4555,"pdiv":0.0028,"div":0},{"t":5.04,"energy":0.0,"nutrient":0.2085,"length":1.46,"cycle":0.4602,"pdiv":0.0043,"div":0},{"t":5.08,"energy":0.0,"nutrient":0.2212,"length":1.0,"cycle":0.0,"pdiv":1.0,"div":1},{"t":5.12,"energy":0.0,"nutrient":0.2346,"length":1.005,"cycle":0.0048,"pdiv":0.0,"div":0},{"t":5.16,"energy":0.0,"nutrient":0.2485,"length":1.01,"cycle":0.0095,"pdiv":0.0,"div":0},{"t":5.2,"energy":0.0,"nutrient":0.263,"length":1.014,"cycle":0.0143,"pdiv":0.0,"div":0},{"t":5.24,"energy":0.0,"nutrient":0.278,"length":1.019,"cycle":0.019,"pdiv":0.0,"div":0},{"t":5.28,"energy":0.0,"nutrient":0.2934,"length":1.024,"cycle":0.0238,"pdiv":0.0,"div":0},{"t":5.32,"energy":0.0,"nutrient":0.3092,"length":1.029,"cycle":0.0286,"pdiv":0.0,"div":0},{"t":5.36,"energy":0.0,"nutrient":0.3254,"length":1.033,"cycle":0.0333,"pdiv":0.0,"div":0},{"t":5.4,"energy":0.0,"nutrient":0.3419,"length":1.038,"cycle":0.0381,"pdiv":0.0,"div":0},{"t":5.44,"energy":0.0,"nutrient":0.3586,"length":1.043,"cycle":0.0429,"pdiv":0.0,"div":0},{"t":5.48,"energy":0.0,"nutrient":0.3755,"length":1.048,"cycle":0.0476,"pdiv":0.0,"div":0},{"t":5.52,"energy":0.0,"nutrient":0.3926,"length":1.052,"cycle":0.0524,"pdiv":0.0,"div":0},{"t":5.56,"energy":0.0,"nutrient":0.4097,"length":1.057,"cycle":0.0571,"pdiv":0.0,"div":0},{"t":5.6,"energy":0.0,"nutrient":0.4269,"length":1.062,"cycle":0.0619,"pdiv":0.0,"div":0},{"t":5.64,"energy":0.0,"nutrient":0.4441,"length":1.067,"cycle":0.0667,"pdiv":0.0,"div":0},{"t":5.68,"energy":0.0,"nutrient":0.4613,"length":1.071,"cycle":0.0714,"pdiv":0.0,"div":0},{"t":5.72,"energy":0.0,"nutrient":0.4783,"length":1.076,"cycle":0.0762,"pdiv":0.0,"div":0},{"t":5.76,"energy":0.0,"nutrient":0.4953,"length":1.081,"cycle":0.081,"pdiv":0.0,"div":0},{"t":5.8,"energy":0.0,"nutrient":0.512,"length":1.086,"cycle":0.0857,"pdiv":0.0,"div":0},{"t":5.84,"energy":0.0,"nutrient":0.5286,"length":1.09,"cycle":0.0905,"pdiv":0.0,"div":0},{"t":5.88,"energy":0.0,"nutrient":0.5449,"length":1.095,"cycle":0.0952,"pdiv":0.0,"div":0},{"t":5.92,"energy":0.0,"nutrient":0.561,"length":1.1,"cycle":0.1,"pdiv":0.0,"div":0},{"t":5.96,"energy":0.0,"nutrient":0.5767,"length":1.105,"cycle":0.1048,"pdiv":0.0,"div":0},{"t":6.0,"energy":0.0,"nutrient":0.5922,"length":1.11,"cycle":0.1095,"pdiv":0.0,"div":0},{"t":6.04,"energy":0.0002,"nutrient":0.6073,"length":1.114,"cycle":0.1143,"pdiv":0.0,"div":0},{"t":6.08,"energy":0.0015,"nutrient":0.622,"length":1.119,"cycle":0.1191,"pdiv":0.0,"div":0},{"t":6.12,"energy":0.004,"nutrient":0.6363,"length":1.124,"cycle":0.1239,"pdiv":0.0,"div":0},{"t":6.16,"energy":0.0076,"nutrient":0.6502,"length":1.129,"cycle":0.1287,"pdiv":0.0,"div":0},{"t":6.2,"energy":0.0123,"nutrient":0.6637,"length":1.134,"cycle":0.1336,"pdiv":0.0,"div":0},{"t":6.24,"energy":0.0181,"nutrient":0.6768,"length":1.139,"cycle":0.1386,"pdiv":0.0,"div":0},{"t":6.28,"energy":0.0248,"nutrient":0.6894,"length":1.144,"cycle":0.1437,"pdiv":0.0,"div":0},{"t":6.32,"energy":0.0326,"nutrient":0.7016,"length":1.149,"cycle":0.1489,"pdiv":0.0,"div":0},{"t":6.36,"energy":0.0413,"nutrient":0.7133,"length":1.154,"cycle":0.1542,"pdiv":0.0,"div":0},{"t":6.4,"energy":0.0509,"nutrient":0.7245,"length":1.16,"cycle":0.1596,"pdiv":0.0,"div":0},{"t":6.44,"energy":0.0614,"nutrient":0.7353,"length":1.165,"cycle":0.1652,"pdiv":0.0,"div":0},{"t":6.48,"energy":0.0728,"nutrient":0.7456,"length":1.171,"cycle":0.1709,"pdiv":0.0,"div":0},{"t":6.52,"energy":0.0849,"nutrient":0.7555,"length":1.177,"cycle":0.1769,"pdiv":0.0,"div":0},{"t":6.56,"energy":0.0978,"nutrient":0.7649,"length":1.183,"cycle":0.1829,"pdiv":0.0,"div":0},{"t":6.6,"energy":0.1115,"nutrient":0.7739,"length":1.189,"cycle":0.1892,"pdiv":0.0,"div":0},{"t":6.64,"energy":0.1258,"nutrient":0.7824,"length":1.196,"cycle":0.1957,"pdiv":0.0,"div":0},{"t":6.68,"energy":0.1408,"nutrient":0.7905,"length":1.202,"cycle":0.2024,"pdiv":0.0,"div":0},{"t":6.72,"energy":0.1565,"nutrient":0.7982,"length":1.209,"cycle":0.2093,"pdiv":0.0,"div":0},{"t":6.76,"energy":0.1727,"nutrient":0.8055,"length":1.216,"cycle":0.2165,"pdiv":0.0,"div":0},{"t":6.8,"energy":0.1895,"nutrient":0.8124,"length":1.224,"cycle":0.2238,"pdiv":0.0,"div":0},{"t":6.84,"energy":0.2068,"nutrient":0.8188,"length":1.231,"cycle":0.2315,"pdiv":0.0,"div":0},{"t":6.88,"energy":0.2246,"nutrient":0.8249,"length":1.239,"cycle":0.2393,"pdiv":0.0,"div":0},{"t":6.92,"energy":0.2429,"nutrient":0.8306,"length":1.247,"cycle":0.2475,"pdiv":0.0,"div":0},{"t":6.96,"energy":0.2616,"nutrient":0.836,"length":1.256,"cycle":0.2559,"pdiv":0.0,"div":0},{"t":7.0,"energy":0.2807,"nutrient":0.8411,"length":1.265,"cycle":0.2645,"pdiv":0.0,"div":0},{"t":7.04,"energy":0.3003,"nutrient":0.8458,"length":1.273,"cycle":0.2735,"pdiv":0.0,"div":0},{"t":7.08,"energy":0.3201,"nutrient":0.8502,"length":1.283,"cycle":0.2827,"pdiv":0.0001,"div":0},{"t":7.12,"energy":0.3404,"nutrient":0.8543,"length":1.292,"cycle":0.2922,"pdiv":0.0001,"div":0},{"t":7.16,"energy":0.3609,"nutrient":0.8581,"length":1.302,"cycle":0.302,"pdiv":0.0001,"div":0},{"t":7.2,"energy":0.3817,"nutrient":0.8616,"length":1.312,"cycle":0.3121,"pdiv":0.0001,"div":0},{"t":7.24,"energy":0.4028,"nutrient":0.8649,"length":1.323,"cycle":0.3225,"pdiv":0.0002,"div":0},{"t":7.28,"energy":0.4242,"nutrient":0.868,"length":1.333,"cycle":0.3332,"pdiv":0.0002,"div":0},{"t":7.32,"energy":0.4458,"nutrient":0.8708,"length":1.344,"cycle":0.3443,"pdiv":0.0003,"div":0},{"t":7.36,"energy":0.4676,"nutrient":0.8734,"length":1.356,"cycle":0.3556,"pdiv":0.0006,"div":0},{"t":7.4,"energy":0.4896,"nutrient":0.8759,"length":1.367,"cycle":0.3672,"pdiv":0.001,"div":0},{"t":7.44,"energy":0.5117,"nutrient":0.8781,"length":1.379,"cycle":0.3792,"pdiv":0.0021,"div":0},{"t":7.48,"energy":0.5341,"nutrient":0.8801,"length":1.391,"cycle":0.3914,"pdiv":0.0055,"div":0},{"t":7.52,"energy":0.5566,"nutrient":0.882,"length":1.404,"cycle":0.404,"pdiv":0.0203,"div":0},{"t":7.56,"energy":0.5792,"nutrient":0.8837,"length":1.417,"cycle":0.4169,"pdiv":0.1176,"div":0},{"t":7.6,"energy":0.602,"nutrient":0.8853,"length":1.43,"cycle":0.4302,"pdiv":0.6629,"div":0},{"t":7.62,"energy":0.6134,"nutrient":0.886,"length":1.0,"cycle":0.0,"pdiv":0.9192,"div":1},{"t":7.64,"energy":0.6249,"nutrient":0.8867,"length":1.007,"cycle":0.0068,"pdiv":0.0,"div":0},{"t":7.68,"energy":0.6479,"nutrient":0.8881,"length":1.021,"cycle":0.0207,"pdiv":0.0,"div":0},{"t":7.72,"energy":0.671,"nutrient":0.8893,"length":1.035,"cycle":0.0349,"pdiv":0.0,"div":0},{"t":7.76,"energy":0.6942,"nutrient":0.8903,"length":1.049,"cycle":0.0495,"pdiv":0.0,"div":0},{"t":7.8,"energy":0.7175,"nutrient":0.8913,"length":1.064,"cycle":0.0644,"pdiv":0.0,"div":0},{"t":7.84,"energy":0.7408,"nutrient":0.8922,"length":1.08,"cycle":0.0796,"pdiv":0.0,"div":0},{"t":7.88,"energy":0.7643,"nutrient":0.8931,"length":1.095,"cycle":0.0952,"pdiv":0.0,"div":0},{"t":7.92,"energy":0.7877,"nutrient":0.8938,"length":1.111,"cycle":0.111,"pdiv":0.0,"div":0},{"t":7.96,"energy":0.8113,"nutrient":0.8945,"length":1.127,"cycle":0.1273,"pdiv":0.0,"div":0},{"t":8.0,"energy":0.8349,"nutrient":0.8951,"length":1.144,"cycle":0.1438,"pdiv":0.0,"div":0},{"t":8.04,"energy":0.8585,"nutrient":0.8956,"length":1.161,"cycle":0.1607,"pdiv":0.0,"div":0},{"t":8.08,"energy":0.8822,"nutrient":0.8961,"length":1.178,"cycle":0.178,"pdiv":0.0,"div":0},{"t":8.12,"energy":0.9059,"nutrient":0.8965,"length":1.196,"cycle":0.1955,"pdiv":0.0,"div":0},{"t":8.16,"energy":0.9296,"nutrient":0.8969,"length":1.213,"cycle":0.2135,"pdiv":0.0,"div":0},{"t":8.2,"energy":0.9534,"nutrient":0.8973,"length":1.232,"cycle":0.2317,"pdiv":0.0,"div":0},{"t":8.24,"energy":0.9772,"nutrient":0.8976,"length":1.25,"cycle":0.2503,"pdiv":0.0043,"div":0},{"t":8.28,"energy":1.0,"nutrient":0.8979,"length":1.269,"cycle":0.2692,"pdiv":0.0061,"div":0},{"t":8.32,"energy":1.0,"nutrient":0.8981,"length":1.288,"cycle":0.2883,"pdiv":0.0064,"div":0},{"t":8.36,"energy":1.0,"nutrient":0.8983,"length":1.307,"cycle":0.3073,"pdiv":0.0076,"div":0},{"t":8.4,"energy":1.0,"nutrient":0.8985,"length":1.326,"cycle":0.3264,"pdiv":0.0128,"div":0},{"t":8.44,"energy":1.0,"nutrient":0.8987,"length":1.345,"cycle":0.3454,"pdiv":0.0344,"div":0},{"t":8.48,"energy":1.0,"nutrient":0.8989,"length":1.364,"cycle":0.3645,"pdiv":0.1541,"div":0},{"t":8.52,"energy":1.0,"nutrient":0.899,"length":1.384,"cycle":0.3835,"pdiv":0.6766,"div":0},{"t":8.54,"energy":1.0,"nutrient":0.8991,"length":1.0,"cycle":0.0,"pdiv":0.9069,"div":1},{"t":8.56,"energy":1.0,"nutrient":0.8991,"length":1.01,"cycle":0.0095,"pdiv":0.0,"div":0},{"t":8.6,"energy":1.0,"nutrient":0.8992,"length":1.029,"cycle":0.0286,"pdiv":0.0,"div":0},{"t":8.64,"energy":1.0,"nutrient":0.8993,"length":1.048,"cycle":0.0476,"pdiv":0.0,"div":0},{"t":8.68,"energy":1.0,"nutrient":0.8994,"length":1.067,"cycle":0.0667,"pdiv":0.0,"div":0},{"t":8.72,"energy":1.0,"nutrient":0.8995,"length":1.086,"cycle":0.0857,"pdiv":0.0,"div":0},{"t":8.76,"energy":1.0,"nutrient":0.8996,"length":1.105,"cycle":0.1048,"pdiv":0.0,"div":0},{"t":8.8,"energy":1.0,"nutrient":0.8996,"length":1.124,"cycle":0.1238,"pdiv":0.0,"div":0},{"t":8.84,"energy":1.0,"nutrient":0.8997,"length":1.143,"cycle":0.1429,"pdiv":0.0,"div":0},{"t":8.88,"energy":1.0,"nutrient":0.8997,"length":1.162,"cycle":0.1619,"pdiv":0.0,"div":0},{"t":8.92,"energy":1.0,"nutrient":0.8998,"length":1.181,"cycle":0.181,"pdiv":0.0,"div":0},{"t":8.96,"energy":1.0,"nutrient":0.8998,"length":1.2,"cycle":0.2,"pdiv":0.0,"div":0},{"t":9.0,"energy":1.0,"nutrient":0.8998,"length":1.219,"cycle":0.219,"pdiv":0.0,"div":0},{"t":9.04,"energy":1.0,"nutrient":0.8998,"length":1.238,"cycle":0.2381,"pdiv":0.0,"div":0},{"t":9.08,"energy":1.0,"nutrient":0.8999,"length":1.257,"cycle":0.2571,"pdiv":0.0,"div":0},{"t":9.12,"energy":1.0,"nutrient":0.8999,"length":1.276,"cycle":0.2762,"pdiv":0.0,"div":0},{"t":9.16,"energy":1.0,"nutrient":0.8999,"length":1.295,"cycle":0.2952,"pdiv":0.006,"div":0},{"t":9.2,"energy":1.0,"nutrient":0.8999,"length":1.314,"cycle":0.3143,"pdiv":0.0082,"div":0},{"t":9.24,"energy":1.0,"nutrient":0.8999,"length":1.333,"cycle":0.3333,"pdiv":0.0162,"div":0},{"t":9.28,"energy":1.0,"nutrient":0.8999,"length":1.352,"cycle":0.3524,"pdiv":0.0507,"div":0},{"t":9.32,"energy":1.0,"nutrient":0.8999,"length":1.371,"cycle":0.3714,"pdiv":0.2541,"div":0},{"t":9.36,"energy":1.0,"nutrient":0.9,"length":1.39,"cycle":0.3905,"pdiv":0.8408,"div":0},{"t":9.37,"energy":1.0,"nutrient":0.9,"length":1.0,"cycle":0.0,"pdiv":0.9233,"div":1},{"t":9.4,"energy":1.0,"nutrient":0.9,"length":1.014,"cycle":0.0143,"pdiv":0.0,"div":0},{"t":9.44,"energy":1.0,"nutrient":0.9,"length":1.033,"cycle":0.0333,"pdiv":0.0,"div":0},{"t":9.48,"energy":1.0,"nutrient":0.9,"length":1.052,"cycle":0.0524,"pdiv":0.0,"div":0},{"t":9.52,"energy":1.0,"nutrient":0.9,"length":1.071,"cycle":0.0714,"pdiv":0.0,"div":0},{"t":9.56,"energy":1.0,"nutrient":0.9,"length":1.09,"cycle":0.0905,"pdiv":0.0,"div":0},{"t":9.6,"energy":1.0,"nutrient":0.9,"length":1.11,"cycle":0.1095,"pdiv":0.0,"div":0},{"t":9.64,"energy":1.0,"nutrient":0.9,"length":1.129,"cycle":0.1286,"pdiv":0.0,"div":0},{"t":9.68,"energy":1.0,"nutrient":0.9,"length":1.148,"cycle":0.1476,"pdiv":0.0,"div":0},{"t":9.72,"energy":1.0,"nutrient":0.9,"length":1.167,"cycle":0.1667,"pdiv":0.0,"div":0},{"t":9.76,"energy":1.0,"nutrient":0.9,"length":1.186,"cycle":0.1857,"pdiv":0.0,"div":0},{"t":9.8,"energy":1.0,"nutrient":0.9,"length":1.205,"cycle":0.2048,"pdiv":0.0,"div":0},{"t":9.84,"energy":1.0,"nutrient":0.9,"length":1.224,"cycle":0.2238,"pdiv":0.0,"div":0},{"t":9.88,"energy":1.0,"nutrient":0.9,"length":1.243,"cycle":0.2429,"pdiv":0.0,"div":0},{"t":9.92,"energy":1.0,"nutrient":0.9,"length":1.262,"cycle":0.2619,"pdiv":0.0,"div":0},{"t":9.96,"energy":1.0,"nutrient":0.9,"length":1.281,"cycle":0.281,"pdiv":0.0,"div":0}]},"pop":[10,10,10,10,20,20,20,20,22,30,40,40,40,40,42,52,68,72,75,79,79,80,80,82,86,97,106,117,130,137,144,146,147,148,148,148,148,148,148,148,148,148,148,149,149,149,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,151,151,151,151,151,151,151,151,151,151,151,151,151,151,151,151,151,151,151,151,152,152,152,152,152,152,152,152,152,153,153,153,153,153,153,153,153,153,153,153,154,154]};</script>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+// ---- data ----
+let CELL=null, POP=[];
+async function loadData(){
+  if(window.__EMBED__){ CELL=window.__EMBED__.cell; POP=window.__EMBED__.pop||[]; return; }
+  const r=await fetch("cell_internal.json"); if(!r.ok) throw new Error("cell_internal.json "+r.status);
+  CELL=await r.json();
+  try{ const p=await fetch("colony_pop.json"); if(p.ok) POP=await p.json(); }catch(e){}
+}
+
+// ---- signals ----
+let SIG=null;
+function smooth(a,w){const o=a.slice();for(let i=0;i<a.length;i++){let s=0,n=0;for(let k=-w;k<=w;k++){const j=i+k;if(j>=0&&j<a.length){s+=a[j];n++;}}o[i]=s/n;}return o;}
+function buildSignals(){
+  const f=CELL.frames;
+  const E=f.map(x=>x.energy), NU=f.map(x=>x.nutrient), CY=f.map(x=>x.cycle), PD=f.map(x=>x.pdiv);
+  const flux=smooth(f.map((x,i)=>NU[i]*(0.35+0.65*E[i])),2);
+  const trx =smooth(f.map((x,i)=>E[i]*(0.30+0.70*CY[i])),2);
+  const trl =smooth(f.map((x,i)=>0.15+0.85*E[i]),2);
+  const strg=smooth(f.map((x,i)=>1-E[i]),2);
+  SIG={E,NU,CY,PD,flux,trx,trl,strg};
+}
+// current interpolated value of a signal array at fractional frame
+function val(arr){const n=CELL.frames.length; if(fpos<=0)return arr[0]; if(fpos>=n-1)return arr[n-1];
+  const i=Math.floor(fpos),t=fpos-i; return arr[i]*(1-t)+arr[i+1]*t;}
+
+// ---- playback state ----
+let fpos=0, playing=false, speed=1, lastT=0, animT=0;
+let lastDivFlash=0;   // seconds since last division event (for replication flash)
+
+// ================= CELL GEOMETRY (cell-space 1000 x 620) =================
+const CW=1000, CH=620;
+// envelope stadium
+const ENV={x0:70,y0:150,x1:930,y1:470}; // rect; radius = half height
+const ENV_R=(ENV.y1-ENV.y0)/2;
+const CORE={x:500,y:305,r:82};
+// metabolic traces: two chains of enzyme nodes with PCB routing
+function mkTrace(pts){ // pts: array [x,y]; precompute cumulative length
+  let len=0; const seg=[]; for(let i=1;i<pts.length;i++){const dx=pts[i][0]-pts[i-1][0],dy=pts[i][1]-pts[i-1][1];const d=Math.hypot(dx,dy);seg.push(d);len+=d;}
+  return {pts,seg,len};
+}
+function traceAt(tr,t){ // t in [0,1] -> point
+  let d=t*tr.len, i=0; while(i<tr.seg.length && d>tr.seg[i]){d-=tr.seg[i];i++;} if(i>=tr.seg.length)return tr.pts[tr.pts.length-1];
+  const a=tr.pts[i],b=tr.pts[i+1],f=tr.seg[i]?d/tr.seg[i]:0; return [a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];
+}
+// bottom glycolysis chain (left->right)
+const glyNodes=[[160,430],[290,452],[420,430],[560,452],[690,430],[820,452]];
+const glyTrace=mkTrace([[110,430],[160,430],[225,452],[290,452],[355,430],[420,430],[490,452],[560,452],[625,430],[690,430],[755,452],[820,452],[880,430]]);
+// top TCA-ish loop
+const tcaNodes=[[300,175],[430,158],[560,175],[690,158]];
+const tcaTrace=mkTrace([[240,200],[300,175],[365,158],[430,158],[495,175],[560,175],[625,158],[690,158],[740,180],[720,215]]);
+// ATP bus (right, vertical) collecting to bank
+const atpTrace=mkTrace([[880,430],[905,400],[905,230],[860,200],[740,180]]);
+const atpBank={x:872,y:300,w:34,h:120};
+// ribosomes (assembler units) around the core, each with mRNA path from core edge
+const RIBS=[
+  {x:300,y:300,ang:Math.PI,   phase:0.0},
+  {x:706,y:322,ang:0,         phase:0.45},
+];
+// chemoreceptor comb at left pole
+// proteins drifting
+let proteins=[]; let protTotal=0;
+
+// ---- canvas scale ----
+let SCX,SCY,OX,OY;
+function fit(){
+  const cv=$("#cell"); const dpr=Math.min(devicePixelRatio||1,2);
+  const r=cv.getBoundingClientRect(); cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+  const pad=24; const s=Math.min((cv.width-pad*2)/CW,(cv.height-pad*2)/CH);
+  SCX=SCY=s; OX=(cv.width-CW*s)/2; OY=(cv.height-CH*s)/2;
+  const tl=$("#tele"); const tr=tl.getBoundingClientRect(); tl.width=tr.width*dpr; tl.height=tr.height*dpr;
+}
+function X(x){return OX+x*SCX;} function Y(y){return OY+y*SCY;} function S(v){return v*SCX;}
+
+// ---- drawing helpers ----
+function stadiumPath(ctx,x0,y0,x1,y1,r){
+  ctx.beginPath();
+  ctx.moveTo(X(x0+r),Y(y0));
+  ctx.lineTo(X(x1-r),Y(y0));
+  ctx.arc(X(x1-r),Y((y0+y1)/2),S(r),-Math.PI/2,Math.PI/2);
+  ctx.lineTo(X(x0+r),Y(y1));
+  ctx.arc(X(x0+r),Y((y0+y1)/2),S(r),Math.PI/2,Math.PI*1.5);
+  ctx.closePath();
+}
+function poly(ctx,tr){ctx.beginPath();ctx.moveTo(X(tr.pts[0][0]),Y(tr.pts[0][1]));for(let i=1;i<tr.pts.length;i++)ctx.lineTo(X(tr.pts[i][0]),Y(tr.pts[i][1]));}
+function node(ctx,x,y,rr,on,col){
+  ctx.beginPath(); ctx.rect(X(x-rr),Y(y-rr),S(rr*2),S(rr*2));
+  ctx.fillStyle="#0b1119"; ctx.fill();
+  ctx.lineWidth=S(1.4); ctx.strokeStyle=on?col:"#2b4150"; ctx.stroke();
+  if(on){ctx.fillStyle=col; ctx.globalAlpha=.25+.55*on; ctx.beginPath();ctx.rect(X(x-rr*0.5),Y(y-rr*0.5),S(rr),S(rr));ctx.fill();ctx.globalAlpha=1;}
+}
+function label(ctx,x,y,tx,ty,txt,col){
+  ctx.strokeStyle="#2b4150"; ctx.lineWidth=S(1); ctx.beginPath();
+  ctx.moveTo(X(x),Y(y)); ctx.lineTo(X(tx),Y(ty)); ctx.stroke();
+  ctx.fillStyle="#0b1119"; ctx.beginPath();ctx.arc(X(x),Y(y),S(2.6),0,7);ctx.fill();
+  ctx.strokeStyle=col||"#3a4d5c"; ctx.beginPath();ctx.arc(X(x),Y(y),S(2.6),0,7);ctx.stroke();
+  ctx.fillStyle=col||"#6b8296"; ctx.font=`${S(12)}px ${getFont()}`; ctx.textBaseline="middle";
+  const a=tx<x?"right":"left"; ctx.textAlign=a;
+  ctx.fillText(txt,X(tx)+(a==="right"?-S(5):S(5)),Y(ty));
+  ctx.textAlign="left";
+}
+function getFont(){return "ui-monospace,Consolas,monospace";}
+
+// ---- subsystem renderers ----
+function drawGridTech(ctx,W,H){
+  ctx.save(); ctx.strokeStyle="rgba(255,255,255,.022)"; ctx.lineWidth=1;
+  const g=Math.round(S(40)); for(let x=OX% g;x<W;x+=g){ctx.beginPath();ctx.moveTo(x+.5,0);ctx.lineTo(x+.5,H);ctx.stroke();}
+  for(let y=OY% g;y<H;y+=g){ctx.beginPath();ctx.moveTo(0,y+.5);ctx.lineTo(W,y+.5);ctx.stroke();}
+  ctx.restore();
+}
+function drawEnvelope(ctx){
+  // outer + inner membrane
+  ctx.lineJoin="round";
+  stadiumPath(ctx,ENV.x0,ENV.y0,ENV.x1,ENV.y1,ENV_R);
+  ctx.fillStyle="rgba(12,20,30,.55)"; ctx.fill();
+  ctx.strokeStyle="#3a5566"; ctx.lineWidth=S(2.2); ctx.stroke();
+  stadiumPath(ctx,ENV.x0+10,ENV.y0+10,ENV.x1-10,ENV.y1-10,ENV_R-10);
+  ctx.strokeStyle="#22424d"; ctx.lineWidth=S(1); ctx.stroke();
+  // hex-panel silkscreen along top & bottom straight edges (Dyson paneling)
+  ctx.strokeStyle="rgba(94,200,220,.16)"; ctx.lineWidth=S(1);
+  for(let x=ENV.x0+ENV_R;x<ENV.x1-ENV_R;x+=34){
+    hexTick(ctx,x,ENV.y0+6); hexTick(ctx,x,ENV.y1-6);
+  }
+  // corner registration marks
+  ctx.strokeStyle="#33485c"; ctx.lineWidth=S(1.2);
+  regMark(ctx,ENV.x0+ENV_R,ENV.y0-14); regMark(ctx,ENV.x1-ENV_R,ENV.y0-14);
+  // dimension line (top)
+  ctx.strokeStyle="#26384a"; ctx.lineWidth=S(1);
+  ctx.beginPath();ctx.moveTo(X(ENV.x0),Y(120));ctx.lineTo(X(ENV.x1),Y(120));
+  ctx.moveTo(X(ENV.x0),Y(114));ctx.lineTo(X(ENV.x0),Y(126));ctx.moveTo(X(ENV.x1),Y(114));ctx.lineTo(X(ENV.x1),Y(126));ctx.stroke();
+  ctx.fillStyle="#4b5e6d"; ctx.font=`${S(11)}px ${getFont()}`; ctx.textAlign="center";
+  ctx.fillText("2.00 µm",X(500),Y(112)); ctx.textAlign="left";
+}
+function hexTick(ctx,x,y){const r=4;ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/3*i+Math.PI/6;const px=X(x)+S(r)*Math.cos(a),py=Y(y)+S(r)*Math.sin(a);i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.closePath();ctx.stroke();}
+function regMark(ctx,x,y){const s=5;ctx.beginPath();ctx.arc(X(x),Y(y),S(s),0,7);ctx.moveTo(X(x-s-3),Y(y));ctx.lineTo(X(x+s+3),Y(y));ctx.moveTo(X(x),Y(y-s-3));ctx.lineTo(X(x),Y(y+s+3));ctx.stroke();}
+
+function drawCircuits(ctx){
+  const flux=val(SIG.flux);
+  // traces
+  [glyTrace,tcaTrace,atpTrace].forEach(tr=>{
+    poly(ctx,tr); ctx.strokeStyle="#1d3946"; ctx.lineWidth=S(3.2); ctx.stroke();
+    poly(ctx,tr); ctx.strokeStyle="rgba(94,200,220,"+(0.12+0.20*flux)+")"; ctx.lineWidth=S(1.2); ctx.stroke();
+  });
+  // enzyme nodes
+  glyNodes.forEach((n,i)=>{ const ph=(animT*0.35*(0.4+flux)+i*0.16)%1; node(ctx,n[0],n[1],9, pulseNear(ph, i/glyNodes.length)? flux:0, "#5ec8dc"); });
+  tcaNodes.forEach((n,i)=>node(ctx,n[0],n[1],8, 0.25*flux, "#5ec8dc"));
+  // ATP bank (capacitor stack) fills with energy
+  const E=val(SIG.E);
+  ctx.strokeStyle="#3a5566"; ctx.lineWidth=S(1.4);
+  ctx.strokeRect(X(atpBank.x-atpBank.w/2),Y(atpBank.y-atpBank.h/2),S(atpBank.w),S(atpBank.h));
+  const fh=atpBank.h*E; ctx.fillStyle="rgba(227,166,63,.75)";
+  ctx.fillRect(X(atpBank.x-atpBank.w/2+2),Y(atpBank.y+atpBank.h/2-fh)+1,S(atpBank.w-4),S(fh)-2);
+  for(let i=1;i<5;i++){const yy=atpBank.y-atpBank.h/2+atpBank.h*i/5;ctx.strokeStyle="#26384a";ctx.beginPath();ctx.moveTo(X(atpBank.x-atpBank.w/2),Y(yy));ctx.lineTo(X(atpBank.x+atpBank.w/2),Y(yy));ctx.stroke();}
+  // flowing substrate pulses along glycolysis + atp bus
+  drawPulses(ctx,glyTrace,flux,"#8fe6f2",6);
+  drawPulses(ctx,atpTrace,flux*0.9,"#e3a63f",3);
+  drawPulses(ctx,tcaTrace,flux*0.6,"#8fe6f2",3);
+}
+function pulseNear(ph,pos){return Math.abs(((ph-pos)+1)%1)<0.10?1:0;}
+function drawPulses(ctx,tr,rate,col,count){
+  const n=Math.max(1,Math.round(count*(0.3+rate)));
+  for(let i=0;i<n;i++){
+    let t=(animT*(0.12+0.28*rate)+i/n)%1;
+    const p=traceAt(tr,t);
+    ctx.globalAlpha=.9; ctx.fillStyle=col;
+    ctx.beginPath();ctx.arc(X(p[0]),Y(p[1]),S(2.6),0,7);ctx.fill();
+    ctx.globalAlpha=.25; ctx.beginPath();ctx.arc(X(p[0]),Y(p[1]),S(5.5),0,7);ctx.fill();
+    ctx.globalAlpha=1;
+  }
+}
+
+// point on the nucleoid ribbon loop L at angle th
+function coilPt(L,th){
+  const rr=CORE.r*(0.60+0.26*Math.sin(3*th+L*1.6+animT*0.35));
+  return [CORE.x+rr*Math.cos(th), CORE.y+rr*0.66*Math.sin(th)];
+}
+function drawNucleoid(ctx){
+  const trx=val(SIG.trx); const cyc=val(SIG.CY);
+  const cx=X(CORE.x),cy=Y(CORE.y),R=S(CORE.r);
+  const flash=Math.max(0,1-lastDivFlash/0.9);
+  // dark disc + intense halo (glows con transcripcion)
+  const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.9);
+  glow.addColorStop(0,`rgba(150,236,247,${0.14+0.30*trx+0.35*flash})`);
+  glow.addColorStop(.5,`rgba(94,200,220,${0.05+0.10*trx})`);
+  glow.addColorStop(1,"rgba(94,200,220,0)");
+  ctx.fillStyle=glow; ctx.beginPath();ctx.arc(cx,cy,R*1.9,0,7);ctx.fill();
+  ctx.fillStyle="rgba(8,14,20,.72)"; ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
+  // filamentos de datos: 3 lazos de cinta limpios y brillantes
+  const bright=0.28+0.55*trx;
+  for(let L=0;L<3;L++){
+    ctx.beginPath();
+    for(let a=0;a<=1.0001;a+=0.015){const p=coilPt(L,a*Math.PI*2);a===0?ctx.moveTo(X(p[0]),Y(p[1])):ctx.lineTo(X(p[0]),Y(p[1]));}
+    ctx.closePath();
+    ctx.strokeStyle=`rgba(200,244,251,${bright*(0.5-L*0.12)})`; ctx.lineWidth=S(2.0-L*0.4); ctx.stroke();
+  }
+  // marcas de "datos" radiales tenues
+  ctx.strokeStyle=`rgba(94,200,220,${0.12+0.2*trx})`; ctx.lineWidth=S(1);
+  for(let i=0;i<24;i++){const th=i/24*Math.PI*2;const p=coilPt(0,th);
+    ctx.beginPath();ctx.moveTo(X(p[0]),Y(p[1]));ctx.lineTo(X(CORE.x+(p[0]-CORE.x)*0.82),Y(CORE.y+(p[1]-CORE.y)*0.82));ctx.stroke();}
+  // ARN polimerasa recorriendo la cinta + estela de ARNm
+  const pn=1+Math.round(trx*3);
+  for(let i=0;i<pn;i++){
+    const th=((animT*(0.12+0.45*trx)+i/pn)%1)*Math.PI*2; const p=coilPt(0,th);
+    for(let k=1;k<=5;k++){const q=coilPt(0,th-k*0.05);ctx.globalAlpha=(0.5-k*0.08)*bright;ctx.fillStyle="#8fe6f2";ctx.beginPath();ctx.arc(X(q[0]),Y(q[1]),S(1.6),0,7);ctx.fill();}
+    ctx.globalAlpha=1; ctx.fillStyle="#eafcff";ctx.beginPath();ctx.arc(X(p[0]),Y(p[1]),S(3),0,7);ctx.fill();
+    ctx.globalAlpha=.35;ctx.beginPath();ctx.arc(X(p[0]),Y(p[1]),S(6.5),0,7);ctx.fill();ctx.globalAlpha=1;
+  }
+  // eje de replicacion en el destello de division
+  if(flash>0.02){
+    ctx.strokeStyle=`rgba(230,250,255,${flash})`; ctx.lineWidth=S(1.6);
+    ctx.beginPath();ctx.moveTo(cx,Y(CORE.y-CORE.r));ctx.lineTo(cx,Y(CORE.y+CORE.r));ctx.stroke();
+    ctx.fillStyle=`rgba(200,244,251,${flash*0.9})`; ctx.font=`${S(10)}px ${getFont()}`;ctx.textAlign="center";
+    ctx.fillText("REPLICACIÓN",cx,Y(CORE.y-CORE.r-14));ctx.textAlign="left";
+  }
+  // anillo del nucleoide + arco de ciclo celular
+  ctx.strokeStyle=`rgba(94,200,220,${0.4+0.35*trx})`; ctx.lineWidth=S(1.3);
+  ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.stroke();
+  ctx.strokeStyle="#1d3946"; ctx.lineWidth=S(2.6);ctx.beginPath();ctx.arc(cx,cy,R+S(9),0,7);ctx.stroke();
+  ctx.strokeStyle="#5ec8dc"; ctx.lineWidth=S(2.6);
+  ctx.beginPath();ctx.arc(cx,cy,R+S(9),-Math.PI/2,-Math.PI/2+cyc*Math.PI*2);ctx.stroke();
+}
+
+function drawRibosomes(ctx){
+  const trl=val(SIG.trl);
+  RIBS.forEach((rb,idx)=>{
+    // ARNm: cinta desde el borde del nucleoide hasta el ribosoma
+    const a=Math.atan2(rb.y-CORE.y,rb.x-CORE.x);
+    const sx=CORE.x+Math.cos(a)*CORE.r, sy=CORE.y+Math.sin(a)*CORE.r;
+    const mx=(sx+rb.x)/2+(sy-rb.y)*0.14, my=(sy+rb.y)/2+(rb.x-sx)*0.14;
+    ctx.strokeStyle=`rgba(94,200,220,${0.16+0.22*trl})`; ctx.lineWidth=S(1.5);
+    ctx.beginPath();ctx.moveTo(X(sx),Y(sy));ctx.quadraticCurveTo(X(mx),Y(my),X(rb.x),Y(rb.y)); ctx.stroke();
+    // codones (marcas) + cabeza de lectura que avanza
+    const hp=(animT*(0.18+0.55*trl)+rb.phase)%1;
+    const bz=(t)=>[(1-t)*(1-t)*sx+2*(1-t)*t*mx+t*t*rb.x,(1-t)*(1-t)*sy+2*(1-t)*t*my+t*t*rb.y];
+    const hd=bz(hp); ctx.fillStyle="#8fe6f2";ctx.beginPath();ctx.arc(X(hd[0]),Y(hd[1]),S(2.2),0,7);ctx.fill();
+
+    const out=rb.ang; // direccion de salida de la proteina
+    // cadena polipeptidica creciente: bloques de aminoacidos que se pliegan
+    const chainProg=((animT*(0.11+0.42*trl)+idx*0.37)%1);
+    const nb=Math.floor(chainProg*11);
+    let prev=null;
+    for(let b=0;b<nb;b++){
+      const t=b/10;
+      // recta que emerge y luego se pliega en zig-zag geometrico
+      const along=16+t*74;
+      const fold=Math.sin(b*1.7)* (10+ t*14);
+      const bx=rb.x+Math.cos(out)*along + Math.cos(out+Math.PI/2)*fold;
+      const by=rb.y+Math.sin(out)*along + Math.sin(out+Math.PI/2)*fold;
+      if(prev){ctx.strokeStyle="rgba(121,214,166,.5)";ctx.lineWidth=S(1.4);ctx.beginPath();ctx.moveTo(X(prev[0]),Y(prev[1]));ctx.lineTo(X(bx),Y(by));ctx.stroke();}
+      const last=b===nb-1;
+      ctx.fillStyle= last?"#c8f4fb":"#79d6a6"; ctx.globalAlpha=last?1:.9;
+      ctx.beginPath();ctx.rect(X(bx)-S(2.8),Y(by)-S(2.8),S(5.6),S(5.6));ctx.fill();
+      ctx.strokeStyle="rgba(10,16,22,.8)";ctx.lineWidth=S(1);ctx.strokeRect(X(bx)-S(2.8),Y(by)-S(2.8),S(5.6),S(5.6));
+      ctx.globalAlpha=1; prev=[bx,by];
+    }
+    // libera proteina plegada al completar
+    if(nb>=10 && Math.random()<0.07*trl){
+      const px=rb.x+Math.cos(out)*100, py=rb.y+Math.sin(out)*100;
+      proteins.push({x:px,y:py,vx:Math.cos(out)*0.3,vy:Math.sin(out)*0.3-0.15,life:1,seed:Math.random()*6});
+      protTotal++;
+    }
+
+    // cuerpo del ensamblador (unidad industrial minimalista)
+    ctx.save(); ctx.translate(X(rb.x),Y(rb.y)); ctx.rotate(rb.ang);
+    // subunidad mayor + menor (dos cuerpos apilados)
+    ctx.fillStyle="#0e1a24"; ctx.strokeStyle="#54748a"; ctx.lineWidth=S(1.6);
+    roundRectP(ctx,-S(15),-S(13),S(26),S(18),S(5)); ctx.fill(); ctx.stroke();
+    roundRectP(ctx,-S(11),S(3),S(20),S(12),S(4)); ctx.fill(); ctx.stroke();
+    // pistones/brazos de sujecion
+    ctx.strokeStyle="#7fa0b0";ctx.lineWidth=S(1.5);
+    ctx.beginPath();ctx.moveTo(S(11),-S(7));ctx.lineTo(S(20),-S(10));ctx.moveTo(S(11),-S(1));ctx.lineTo(S(20),S(0));ctx.stroke();
+    // sitio activo (glow segun traduccion)
+    ctx.fillStyle=`rgba(94,200,220,${0.35+0.55*trl})`;ctx.beginPath();ctx.arc(0,-S(3),S(3.4),0,7);ctx.fill();
+    // designador
+    ctx.restore();
+    ctx.fillStyle="#4b5e6d"; ctx.font=`${S(9)}px ${getFont()}`;ctx.textAlign="center";
+    ctx.fillText("RIB-0"+(idx+1),X(rb.x),Y(rb.y+ (rb.ang<0? -22:24)));ctx.textAlign="left";
+  });
+}
+function roundRectP(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function drawProteins(ctx){
+  for(const p of proteins){
+    ctx.save(); ctx.translate(X(p.x),Y(p.y)); ctx.globalAlpha=Math.max(0,p.life);
+    ctx.strokeStyle="#79d6a6"; ctx.fillStyle="rgba(121,214,166,.18)"; ctx.lineWidth=S(1.2);
+    ctx.beginPath(); const k=5; for(let i=0;i<k;i++){const a=Math.PI*2*i/k+p.seed;const r=S(7);const x=r*Math.cos(a),y=r*Math.sin(a);i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.restore();
+  }
+}
+function drawReceptors(ctx){
+  const strg=val(SIG.strg);
+  // comb at left pole
+  const bx=ENV.x0+ENV_R-40, cy=(ENV.y0+ENV.y1)/2;
+  for(let i=-3;i<=3;i++){
+    const yy=cy+i*22; const wob=Math.sin(animT*3+i)*2*(0.4+strg);
+    ctx.strokeStyle="rgba(94,200,220,.35)";ctx.lineWidth=S(1.6);
+    ctx.beginPath();ctx.moveTo(X(bx),Y(yy));ctx.lineTo(X(bx-26+wob),Y(yy));ctx.stroke();
+    ctx.fillStyle="#5ec8dc";ctx.beginPath();ctx.arc(X(bx-26+wob),Y(yy),S(2.2),0,7);ctx.fill();
+  }
+}
+function drawLabels(ctx){
+  label(ctx,CORE.x,CORE.y-CORE.r,CORE.x-150,205,"NUCLEOIDE · ADN","#7f97a9");
+  label(ctx,RIBS[1].x+10,RIBS[1].y,760,250,"RIBOSOMA-ASM","#7f97a9");
+  label(ctx,glyNodes[3][0],glyNodes[3][1]+9,600,520,"RUTA GLUCOLÍTICA","#7f97a9");
+  label(ctx,atpBank.x,atpBank.y-atpBank.h/2,atpBank.x-4,235,"BUS ATP","#c99a4a");
+  label(ctx,ENV.x0+ENV_R-52,(ENV.y0+ENV.y1)/2,120,540,"QUIMIORRECEPTORES","#7f97a9");
+  label(ctx,ENV.x1-14,ENV.y0+40,860,150,"MEMBRANA","#7f97a9");
+}
+
+// ================= RENDER =================
+function renderCell(){
+  const cv=$("#cell"),ctx=cv.getContext("2d"),W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  drawGridTech(ctx,W,H);
+  ctx.save();
+  // clip machinery to envelope interior
+  drawEnvelope(ctx);
+  ctx.save();
+  stadiumPath(ctx,ENV.x0,ENV.y0,ENV.x1,ENV.y1,ENV_R); ctx.clip();
+  drawCircuits(ctx);
+  drawReceptors(ctx);
+  drawNucleoid(ctx);
+  drawRibosomes(ctx);
+  drawProteins(ctx);
+  ctx.restore();
+  drawLabels(ctx);
+  ctx.restore();
+
+  // HUD
+  const f=CELL.frames[Math.round(fpos)];
+  $("#clock").textContent=`t = ${f.t.toFixed(2)} s`;
+  const strg=val(SIG.strg);
+  $("#phase").textContent = strg>0.55?"RESPUESTA ESTRINGENTE (ppGpp↑)": (val(SIG.CY)>0.7?"PRE-DIVISIÓN":"CRECIMIENTO ACTIVO");
+  $("#phase").style.color = strg>0.55?"var(--warn)":"var(--amber)";
+  $("#s-atp").textContent=(val(SIG.E)*100).toFixed(0)+"%";
+  $("#s-div").textContent=(val(SIG.PD)*100).toFixed(0)+"%";
+  $("#s-pop").textContent= POP.length? Math.round(POP[Math.min(POP.length-1,Math.floor(fpos/CELL.frames.length*POP.length))]) : "—";
+  $("#prot-n").textContent="Σ "+protTotal;
+  $("#seek").value=fpos;
+}
+
+// ---- telemetry scope ----
+function drawTele(){
+  const cv=$("#tele"),ctx=cv.getContext("2d"),W=cv.width,H=cv.height;
+  const dpr=Math.min(devicePixelRatio||1,2);
+  ctx.clearRect(0,0,W,H);
+  const rows=[["E","#e3a63f"],["NU","#79d6a6"],["trx","#c8f4fb"],["trl","#5ec8dc"],["PD","#9d8bf2"]];
+  const n=CELL.frames.length; const rh=H/rows.length;
+  ctx.strokeStyle="rgba(255,255,255,.05)"; ctx.lineWidth=1;
+  for(let i=1;i<rows.length;i++){const y=rh*i;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  rows.forEach(([key,col],ri)=>{
+    const arr=SIG[key]||SIG.PD; const y0=ri*rh+6, hh=rh-12;
+    const X2=i=>i/(n-1)*W, Y2=v=>y0+hh*(1-Math.max(0,Math.min(1,v)));
+    ctx.strokeStyle=col+"33"; ctx.lineWidth=1.2*dpr; ctx.beginPath();
+    arr.forEach((v,i)=>{const x=X2(i),y=Y2(v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke();
+    const up=Math.floor(fpos);
+    ctx.strokeStyle=col; ctx.lineWidth=1.7*dpr; ctx.beginPath();
+    for(let i=0;i<=up;i++){const x=X2(i),y=Y2(arr[i]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.stroke();
+    ctx.fillStyle=col; const hx=X2(up),hy=Y2(arr[Math.max(0,up)]);ctx.beginPath();ctx.arc(hx,hy,2.4*dpr,0,7);ctx.fill();
+  });
+  $("#scope-t").textContent="t="+CELL.frames[Math.round(fpos)].t.toFixed(1)+"s";
+}
+
+// ---- loop ----
+function frameNow(){return Math.round(fpos);}
+function loop(t){
+  if(!lastT)lastT=t; const dt=(t-lastT)/1000; lastT=t; animT+=dt; if(lastDivFlash<9)lastDivFlash+=dt;
+  if(CELL){
+    if(playing){
+      const prev=Math.floor(fpos);
+      fpos+=dt*speed*14;
+      if(fpos>=CELL.frames.length-1){fpos=CELL.frames.length-1;playing=false;updateBtn();}
+      // division flash trigger
+      const cur=Math.floor(fpos);
+      for(let i=prev+1;i<=cur;i++){ if(CELL.frames[i]&&CELL.frames[i].div){ lastDivFlash=0; } }
+    }
+    renderCell(); drawTele();
+  }
+  requestAnimationFrame(loop);
+}
+function updateBtn(){$("#play").innerHTML=playing?"❚❚ PAUSA":"▶ EJECUTAR";}
+function togglePlay(){playing=!playing; if(playing&&fpos>=CELL.frames.length-1)fpos=0; updateBtn();}
+
+function initUI(){
+  $("#play").onclick=togglePlay;
+  $("#restart").onclick=()=>{fpos=0;proteins=[];};
+  $("#seek").oninput=e=>{fpos=+e.target.value;playing=false;updateBtn();};
+  $("#speed").querySelectorAll("button").forEach(b=>b.onclick=()=>{speed=+b.dataset.s;$("#speed").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));});
+  window.addEventListener("resize",()=>{fit();});
+  window.addEventListener("keydown",e=>{if(e.code==="Space"){e.preventDefault();togglePlay();}});
+  // decay proteins
+  setInterval(()=>{proteins.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life-=0.012;});proteins=proteins.filter(p=>p.life>0);if(proteins.length>60)proteins.splice(0,proteins.length-60);},50);
+}
+
+async function boot(){
+  try{ await loadData(); }catch(e){ $(".layout").innerHTML='<div class="err">Error al cargar datos: '+e.message+'</div>'; return; }
+  buildSignals();
+  const q=new URLSearchParams(location.search);
+  if(q.has("frame"))fpos=Math.max(0,Math.min(+q.get("frame"),CELL.frames.length-1));
+  $("#seek").max=CELL.frames.length-1;
+  initUI(); fit();
+  if(q.get("play")==="1"){playing=true;updateBtn();}
+  requestAnimationFrame(loop);
+}
+boot();
+</script>
+</body>
+</html>
