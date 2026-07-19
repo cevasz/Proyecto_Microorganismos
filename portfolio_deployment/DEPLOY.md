@@ -11,8 +11,9 @@ index.html   # visor completo con los escenarios embebidos
 README.md     # tarjeta del Space (incluye metadata: sdk: static)
 ```
 
-El resto de archivos (`viewer.html`, `*.json`, `generate_data.py`, `build_index.py`,
-`DEPLOY.md`) son las *fuentes* para regenerar el visor y **no** hacen falta en el Space.
+El resto de archivos (`viewer.html`, `scenario_*.json`, `cell_internal.json`,
+`generate_data.py`, `generate_cell.py`, `build_index.py`, `DEPLOY.md`) son las
+*fuentes* para regenerar el visor y **no** hacen falta en el Space.
 
 ## Opción A — Interfaz web (más simple)
 
@@ -38,7 +39,9 @@ git commit -m "NeuroColony-EC: visor interactivo"
 git push
 ```
 
-> `index.html` pesa ~3 MB (datos embebidos), muy por debajo del límite de subida.
+> `index.html` pesa ~5 MB (trayectorias de ambos escenarios + célula embebidas), muy
+> por debajo del límite de subida. Si necesitas reducirlo, sube `save_every` (menos
+> fotogramas) en `generate_data.py` y reconstruye.
 
 ## Regenerar los datos
 
@@ -63,4 +66,4 @@ No necesita servidor.
 > Nota: la plantilla `viewer.html` sí usa `fetch` y requiere un servidor
 > (`python -m http.server`); es solo para desarrollo, no para desplegar.
 
-Parámetros de URL soportados: `?scenario=ppo|ext`, `?frame=N`, `?play=1`.
+Parámetros de URL soportados: `?view=colony|cell`, `?scenario=ppo|ext`, `?frame=N`, `?play=1`.

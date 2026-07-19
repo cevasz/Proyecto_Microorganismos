@@ -1,7 +1,9 @@
 """
 Construye el `index.html` desplegable (autocontenido) a partir de la plantilla
-`viewer.html`, incrustando la telemetria de la celula (`cell_internal.json`) y una
-serie de poblacion de la colonia como contexto (extraida de `scenario_ppo.json`).
+`viewer.html`, incrustando:
+  - la telemetria de UNA celula (`cell_internal.json`) para la pestaña CÉLULA, y
+  - las trayectorias completas de la colonia (`scenario_ppo.json` y
+    `scenario_extinction.json`) para la vista principal COLONIA.
 
 El resultado funciona con doble clic (file://) y en Hugging Face sin usar `fetch`.
 
@@ -13,25 +15,21 @@ import json
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-def load_pop(max_points=140):
-    path = os.path.join(HERE, "scenario_ppo.json")
+def _load(name):
+    path = os.path.join(HERE, name)
     if not os.path.exists(path):
-        return []
-    d = json.load(open(path, encoding="utf-8"))
-    N = [fr["stats"]["N"] for fr in d["frames"]]
-    if len(N) <= max_points:
-        return N
-    step = len(N) / max_points
-    return [N[int(i * step)] for i in range(max_points)]
+        return None
+    return json.load(open(path, encoding="utf-8"))
 
 
 def build():
     tpl = open(os.path.join(HERE, "viewer.html"), encoding="utf-8").read()
 
-    cell = json.load(open(os.path.join(HERE, "cell_internal.json"), encoding="utf-8"))
-    pop = load_pop()
+    cell = _load("cell_internal.json")
+    ppo = _load("scenario_ppo.json")
+    ext = _load("scenario_extinction.json")
 
-    embed = {"cell": cell, "pop": pop}
+    embed = {"cell": cell, "scenarios": {"ppo": ppo, "ext": ext}}
     embed_js = "<script>window.__EMBED__=" + json.dumps(embed, separators=(",", ":")) + ";</script>\n"
 
     marker = '<script>\n"use strict";'
@@ -42,12 +40,13 @@ def build():
     dst = os.path.join(HERE, "index.html")
     with open(dst, "w", encoding="utf-8") as f:
         f.write(out)
-    mb = os.path.getsize(dst) / 1024 / 1024
-    print(f"index.html generado (autocontenido) - {mb:.2f} MB - celula:{cell['n_frames']} fotogramas - poblacion:{len(pop)} puntos")
 
-    # tambien exportar colony_pop.json para el modo fetch de viewer.html
-    with open(os.path.join(HERE, "colony_pop.json"), "w") as f:
-        json.dump(pop, f, separators=(",", ":"))
+    mb = os.path.getsize(dst) / 1024 / 1024
+    nppo = len(ppo["frames"]) if ppo else 0
+    next_ = len(ext["frames"]) if ext else 0
+    ncell = cell.get("n_frames") if cell else 0
+    print(f"index.html generado (autocontenido) - {mb:.2f} MB - "
+          f"colonia PPO:{nppo} frames - colapso:{next_} frames - celula:{ncell} frames")
 
 
 if __name__ == "__main__":
